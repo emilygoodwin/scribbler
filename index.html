@@ -326,8 +326,11 @@ const LEVELS = [
 ];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const MODEL_KEY = 'emnist-letters-v1';
-const LETTERS   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const MODEL_KEY   = 'emnist-letters-v1';
+const LETTERS     = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+// Letters that require two strokes (stem + dot/crossbar)
+const MIN_STROKES = { 'i': 2, 'I': 2, 't': 2, 'T': 2 };
+const STROKE_HINT = { 'i': 'Now add the dot!', 'I': 'Now add the dot!', 't': 'Now add the crossbar!', 'T': 'Now add the crossbar!' };
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let model          = null;
@@ -337,6 +340,7 @@ let currentWord    = '';
 let currentSlot    = 0;
 let awaitingResult = false;
 let pendingPromo   = false;
+let strokeCount    = 0;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -542,6 +546,14 @@ function onMove(e) {
 function onUp(e) {
   e.preventDefault();
   drawing = false;
+  strokeCount++;
+  const target = currentWord[currentSlot];
+  const needed = MIN_STROKES[target] || 1;
+  if (strokeCount < needed) {
+    feedbackEl.textContent = STROKE_HINT[target];
+    feedbackEl.className   = '';
+    return;
+  }
   runPrediction();
 }
 
@@ -556,11 +568,13 @@ canvas.addEventListener('touchend',   onUp,   { passive: false });
 function clearWork() {
   wctx.fillStyle = '#fff';
   wctx.fillRect(0, 0, canvas.width, canvas.height);
+  strokeCount = 0;
 }
 // Clear both canvases (new order)
 function clearAll() {
   ctx.fillStyle  = '#fffcf9';  ctx.fillRect(0, 0, canvas.width, canvas.height);
   wctx.fillStyle = '#fff';     wctx.fillRect(0, 0, canvas.width, canvas.height);
+  strokeCount = 0;
 }
 // Clear button — redo just the current letter, keep previous letters visible
 function clearCanvas() { clearWork(); }
