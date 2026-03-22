@@ -340,7 +340,7 @@
   <div id="header">
     <span id="shop-title">The Cake Shop</span>
     <span id="level-badge">Apprentice</span>
-    <span id="score-display">0 pts</span>
+    <span id="score-display">$0</span>
   </div>
 
   <div id="order-ticket">
@@ -524,7 +524,7 @@ async function runPrediction() {
       renderSlots();
       const pts = LEVELS[levelIdx].pts;
       score    += pts;
-      scoreEl.textContent = `${score} pts`;
+      scoreEl.textContent = `$${score}`;
       feedbackEl.textContent = '🎂 Order done!';
       feedbackEl.className   = 'feedback-correct';
       spawnScorePopup(pts);
@@ -564,9 +564,12 @@ async function runPrediction() {
 
 // ── Promotion ─────────────────────────────────────────────────────────────────
 function showPromo() {
-  const lvl = LEVELS[levelIdx];
+  const lvl     = LEVELS[levelIdx];
+  const prevPts = LEVELS[levelIdx - 1].pts;
+  const morePts = lvl.pts - prevPts;
   promoText.textContent = `You're now a ${lvl.title}! `
-    + `Time to decorate ${lvl.item}s with whole words.`;
+    + `Time to decorate ${lvl.item}s with whole words. `
+    + `These orders earn $${morePts} more per order — $${lvl.pts} each!`;
   promoOverlay.classList.add('show');
 }
 
@@ -580,7 +583,7 @@ function spawnScorePopup(pts) {
   const rect = canvas.getBoundingClientRect();
   const el   = document.createElement('div');
   el.className   = 'score-popup';
-  el.textContent = `+${pts}`;
+  el.textContent = `+$${pts}`;
   el.style.left  = (rect.left + rect.width / 2 - 24) + 'px';
   el.style.top   = (rect.top - 10) + 'px';
   document.body.appendChild(el);
@@ -636,12 +639,11 @@ canvas.addEventListener('touchstart', onDown, { passive: false });
 canvas.addEventListener('touchmove',  onMove, { passive: false });
 canvas.addEventListener('touchend',   onUp,   { passive: false });
 
-// Clear only the hidden work canvas (between letters — display canvas keeps previous marks)
 function saveSnapshot() {
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
+// Between correct letters: leave display canvas alone, only reset the work canvas
 function clearWork() {
-  if (canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0);
   wctx.fillStyle = '#fff';
   wctx.fillRect(0, 0, canvas.width, canvas.height);
   strokeCount = 0;
@@ -653,8 +655,11 @@ function clearAll() {
   strokeCount = 0;
   canvasSnapshot = null;
 }
-// Clear button — erase current letter's strokes, restore previous letters
-function clearCanvas() { clearWork(); }
+// Clear button — restore display to snapshot (undo current letter), reset work canvas
+function clearCanvas() {
+  if (canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0);
+  clearWork();
+}
 
 // ── Canvas → tensor ───────────────────────────────────────────────────────────
 function canvasToTensor() {
