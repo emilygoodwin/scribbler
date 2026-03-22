@@ -354,13 +354,24 @@ const ctx            = canvas.getContext('2d');
 const promoOverlay   = $('promo-overlay');
 const promoText      = $('promo-text');
 
+// Hidden canvas — receives only the current stroke; sent to classifier.
+// The visible canvas accumulates all strokes so previous letters stay visible.
+const workCanvas = document.createElement('canvas');
+workCanvas.width  = canvas.width;
+workCanvas.height = canvas.height;
+const wctx = workCanvas.getContext('2d');
+
 // ── Canvas setup ──────────────────────────────────────────────────────────────
-ctx.lineWidth   = 20;
-ctx.lineCap     = 'round';
-ctx.lineJoin    = 'round';
-ctx.strokeStyle = '#3d2314';
-ctx.fillStyle   = '#fffcf9';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+function setupCtx(c) {
+  c.lineWidth   = 20;
+  c.lineCap     = 'round';
+  c.lineJoin    = 'round';
+  c.strokeStyle = '#3d2314';
+}
+setupCtx(ctx);
+setupCtx(wctx);
+ctx.fillStyle  = '#fffcf9';  ctx.fillRect(0, 0, canvas.width, canvas.height);
+wctx.fillStyle = '#fff';     wctx.fillRect(0, 0, canvas.width, canvas.height);
 
 // ── Model loading ──────────────────────────────────────────────────────────────
 async function tryLoadFile() {
@@ -411,7 +422,7 @@ function newOrder() {
     : `a ${lvl.item} that says "${currentWord}"`;
 
   renderSlots();
-  clearCanvas();
+  clearAll();
   feedbackEl.textContent = '';
   feedbackEl.className   = '';
 }
@@ -431,7 +442,7 @@ async function runPrediction() {
 
   if (correct) {
     currentSlot++;
-    clearCanvas();
+    clearWork();
 
     if (currentSlot >= currentWord.length) {
       // ── Order complete ──
@@ -518,15 +529,15 @@ function onDown(e) {
   e.preventDefault();
   drawing = true;
   const p = getPos(e);
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
+  ctx.beginPath();  ctx.moveTo(p.x, p.y);
+  wctx.beginPath(); wctx.moveTo(p.x, p.y);
 }
 function onMove(e) {
   e.preventDefault();
   if (!drawing) return;
   const p = getPos(e);
-  ctx.lineTo(p.x, p.y);
-  ctx.stroke();
+  ctx.lineTo(p.x, p.y);   ctx.stroke();
+  wctx.lineTo(p.x, p.y);  wctx.stroke();
 }
 function onUp(e) {
   e.preventDefault();
@@ -541,14 +552,22 @@ canvas.addEventListener('touchstart', onDown, { passive: false });
 canvas.addEventListener('touchmove',  onMove, { passive: false });
 canvas.addEventListener('touchend',   onUp,   { passive: false });
 
-function clearCanvas() {
-  ctx.fillStyle = '#fffcf9';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+// Clear only the hidden work canvas (between letters — display canvas keeps previous marks)
+function clearWork() {
+  wctx.fillStyle = '#fff';
+  wctx.fillRect(0, 0, canvas.width, canvas.height);
 }
+// Clear both canvases (new order)
+function clearAll() {
+  ctx.fillStyle  = '#fffcf9';  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  wctx.fillStyle = '#fff';     wctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+// Clear button — redo just the current letter, keep previous letters visible
+function clearCanvas() { clearWork(); }
 
 // ── Canvas → tensor ───────────────────────────────────────────────────────────
 function canvasToTensor() {
-  const full = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const full = wctx.getImageData(0, 0, canvas.width, canvas.height).data;
   let minX = canvas.width, maxX = -1, minY = canvas.height, maxY = -1;
   for (let y = 0; y < canvas.height; y++) {
     for (let x = 0; x < canvas.width; x++) {
@@ -570,9 +589,9 @@ function canvasToTensor() {
     const cx   = (minX + maxX) / 2;
     const cy   = (minY + maxY) / 2;
     const src  = size + pad * 2;
-    tctx.drawImage(canvas, cx - src/2, cy - src/2, src, src, 0, 0, 28, 28);
+    tctx.drawImage(workCanvas, cx - src/2, cy - src/2, src, src, 0, 0, 28, 28);
   } else {
-    tctx.drawImage(canvas, 0, 0, 28, 28);
+    tctx.drawImage(workCanvas, 0, 0, 28, 28);
   }
   const d   = tctx.getImageData(0, 0, 28, 28).data;
   const raw = new Float32Array(28 * 28);
