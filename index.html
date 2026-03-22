@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handwriting Sprint</title>
+  <script src="https://unpkg.com/@tensorflow/tfjs@4.0.0/dist/tf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* ── Loading screen ── */
+    #loading-screen { text-align: center; max-width: 400px; width: 100%; }
+    #loading-screen h2 { font-size: 1.6rem; margin-bottom: 8px; }
+    #loading-screen p.subtitle { color: #9ca3af; font-size: 0.9rem; margin-bottom: 20px; }
+    #progress-container {
+      background: #2a2a4e;
+      border-radius: 8px;
+      height: 12px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6c63ff, #a78bfa);
+      border-radius: 8px;
+      transition: width 0.4s ease;
+    }
+    #loading-status { color: #a78bfa; font-size: 0.9rem; min-height: 1.4em; }
+    #error-box {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      background: #3b1a1a;
+      border: 1px solid #7f1d1d;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+      text-align: left;
+      line-height: 1.6;
+    }
+    #error-box code {
+      display: block;
+      background: #1f2937;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin: 8px 0;
+      color: #e2e8f0;
+      font-size: 0.8rem;
+      word-break: break-all;
+    }
+
+    /* ── Game screen ── */
+    #game-screen { display: none; text-align: center; width: 100%; max-width: 360px; }
+
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #16213e;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+    #score-display { font-size: 1.2rem; font-weight: 700; }
+    #streak-display { font-size: 1rem; color: #fbbf24; font-weight: 600; }
+
+    #prompt-label { font-size: 0.8rem; color: #9ca3af; margin-bottom: 2px; letter-spacing: 0.05em; text-transform: uppercase; }
+    #letter-display {
+      font-size: 9rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+      text-shadow: 0 0 50px rgba(168, 139, 250, 0.5);
+      margin-bottom: 8px;
+    }
+
+    #timer-container {
+      background: #2a2a4e;
+      border-radius: 6px;
+      height: 7px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    #timer-bar {
+      height: 100%;
+      width: 100%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #34d399, #fbbf24, #ef4444);
+      transform-origin: left;
+    }
+
+    canvas {
+      border-radius: 16px;
+      background: #fff;
+      touch-action: none;
+      cursor: crosshair;
+      display: block;
+      margin: 0 auto;
+      box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5);
+      width: 280px;
+      height: 280px;
+    }
+
+    #controls { margin-top: 12px; }
+    button {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+      background: #374151;
+      color: #e5e7eb;
+      transition: background 0.15s;
+    }
+    button:hover { background: #4b5563; }
+
+    #feedback {
+      min-height: 1.8rem;
+      margin-top: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .feedback-correct { color: #34d399; }
+    .feedback-wrong   { color: #f87171; }
+
+    /* floating score popup */
+    .score-popup {
+      position: fixed;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #fbbf24;
+      pointer-events: none;
+      z-index: 999;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      animation: floatUp 0.9s ease-out forwards;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateY(0)    scale(1);   }
+      100% { opacity: 0; transform: translateY(-70px) scale(1.3); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-10px); }
+      60%       { transform: translateX(10px); }
+    }
+    .shake { animation: shake 0.3s ease; }
+  </style>
+</head>
+<body>
+
+<!-- ── Loading / Training Screen ── -->
+<div id="loading-screen">
+  <h2>Handwriting Sprint ✏️</h2>
+  <p class="subtitle">Setting up your letter trainer…</p>
+  <div id="progress-container"><div id="progress-bar"></div></div>
+  <p id="loading-status">Checking for saved model…</p>
+
+  <div id="error-box">
+    <strong>Missing EMNIST data files</strong><br>
+    Download the EMNIST Letters dataset and place two files in a <code>data/</code>
+    folder next to <code>index.html</code>:
+    <code>emnist-letters-train-images-idx3-ubyte</code>
+    <code>emnist-letters-train-labels-idx1-ubyte</code>
+    Get them from:
+    <code>https://www.nist.gov/itl/products-and-services/emnist-dataset</code>
+    Download the "gzip" archive → extract → copy those two files → reload this page.
+    Training takes ~1–2 min and is cached after that.
+  </div>
+</div>
+
+<!-- ── Game Screen ── -->
+<div id="game-screen">
+  <div id="hud">
+    <span id="score-display">0 pts</span>
+    <span id="streak-display">🔥 0</span>
+  </div>
+
+  <div id="prompt-label">Write this letter</div>
+  <div id="letter-display">A</div>
+
+  <div id="timer-container"><div id="timer-bar"></div></div>
+
+  <canvas id="canvas" width="280" height="280"></canvas>
+
+  <div id="controls">
+    <button onclick="clearCanvas()">Clear</button>
+  </div>
+  <div id="feedback"></div>
+
+
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+// Point these at the two EMNIST Letters IDX files (see error box above for details)
+const EMNIST_IMAGES_URL = './data/emnist-letters-train-images-idx3-ubyte';
+const EMNIST_LABELS_URL = './data/emnist-letters-train-labels-idx1-ubyte';
+
+const MODEL_KEY       = 'emnist-letters-v1';
+const TRAINING_N      = 30000; // samples used — more = more accurate, slower first load
+const EPOCHS          = 20;  // early stopping will kick in well before this
+const TIME_LIMIT_MS   = 6000;  // how long the speed timer runs before zeroing out bonus
+const LETTERS         = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let model          = null;
+let currentLetter  = '';
+let score          = 0;
+let streak         = 0;
+let drawStartTime  = null;  // set on first pen-down, null between rounds
+let timerRafId     = null;
+let awaitingResult = false;
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const loadingScreen = $('loading-screen');
+const gameScreen    = $('game-screen');
+const progressBar   = $('progress-bar');
+const statusEl      = $('loading-status');
+const errorBox      = $('error-box');
+const letterEl      = $('letter-display');
+const timerBar      = $('timer-bar');
+const feedbackEl    = $('feedback');
+const scoreEl       = $('score-display');
+const streakEl      = $('streak-display');
+const canvas        = $('canvas');
+const ctx           = canvas.getContext('2d');
+
+ctx.lineWidth   = 18;
+ctx.lineCap     = 'round';
+ctx.lineJoin    = 'round';
+ctx.strokeStyle = '#111';
+
+// Paint white so pixel data is never transparent
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+// ── Model: architecture ───────────────────────────────────────────────────────
+function buildModel() {
+  const m = tf.sequential();
+  m.add(tf.layers.conv2d({ inputShape: [28, 28, 1], filters: 32, kernelSize: 3, activation: 'relu', padding: 'same' }));
+  m.add(tf.layers.maxPooling2d({ poolSize: 2 }));
+  m.add(tf.layers.conv2d({ filters: 64, kernelSize: 3, activation: 'relu', padding: 'same' }));
+  m.add(tf.layers.maxPooling2d({ poolSize: 2 }));
+  m.add(tf.layers.flatten());
+  m.add(tf.layers.dense({ units: 128, activation: 'relu' }));
+  m.add(tf.layers.dropout({ rate: 0.3 }));
+  m.add(tf.layers.dense({ units: 26, activation: 'softmax' }));
+  m.compile({ optimizer: 'adam', loss: 'sparseCategoricalCrossentropy', metrics: ['acc'] });
+  return m;
+}
+
+// ── Model: load helpers ───────────────────────────────────────────────────────
+async function tryLoadFile() {
+  try {
+    return await tf.loadLayersModel('./model/model.json');
+  } catch { return null; }
+}
+
+async function tryLoadCached() {
+  try {
+    return await tf.loadLayersModel(`indexeddb://${MODEL_KEY}`);
+  } catch { return null; }
+}
+
+// ── EMNIST data loading ───────────────────────────────────────────────────────
+// IDX3: magic(4) count(4) rows(4) cols(4) then raw bytes
+function parseIDX3(buf) {
+  const v = new DataView(buf);
+  if (v.getUint32(0) !== 0x00000803) throw new Error('Bad IDX3 magic');
+  return { data: new Uint8Array(buf, 16), count: v.getUint32(4), rows: v.getUint32(8), cols: v.getUint32(12) };
+}
+// IDX1: magic(4) count(4) then bytes
+function parseIDX1(buf) {
+  if (new DataView(buf).getUint32(0) !== 0x00000801) throw new Error('Bad IDX1 magic');
+  return { data: new Uint8Array(buf, 8), count: new DataView(buf).getUint32(4) };
+}
+
+// EMNIST stores images transposed — fix with transpose only
+function fixOrientation(src, rows, cols) {
+  const dst = new Uint8Array(rows * cols);
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      dst[r * cols + c] = src[c * cols + r];
+  return dst;
+}
+
+async function trainFromEMNIST() {
+  setStatus('Fetching EMNIST data…');
+  let imgBuf, lblBuf;
+  try {
+    [imgBuf, lblBuf] = await Promise.all([
+      fetch(EMNIST_IMAGES_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
+      fetch(EMNIST_LABELS_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
+    ]);
+  } catch (e) {
+    throw new Error('fetch_failed');
+  }
+
+  setStatus('Processing…');
+  setProgress(10);
+
+  const imgs = parseIDX3(imgBuf);
+  const lbls = parseIDX1(lblBuf);
+  const n    = Math.min(imgs.count, TRAINING_N);
+  const { rows, cols } = imgs;
+
+
+  // Build input tensor
+  const xs = tf.tidy(() => {
+    const flat = new Float32Array(n * rows * cols);
+    for (let i = 0; i < n; i++) {
+      const raw   = imgs.data.subarray(i * rows * cols, (i + 1) * rows * cols);
+      const fixed = fixOrientation(raw, rows, cols);
+      for (let p = 0; p < fixed.length; p++)
+        flat[i * rows * cols + p] = fixed[p] / 255;
+    }
+    return tf.tensor4d(flat, [n, rows, cols, 1]);
+  });
+
+  // EMNIST Letters labels are 1–26; shift to 0–25
+  const ys = tf.tensor1d(Array.from(lbls.data.subarray(0, n)).map(v => v - 1), 'float32');
+
+  setStatus(`Training on ${n} samples…`);
+  setProgress(15);
+
+  let bestValAcc = -Infinity, patienceCount = 0;
+  const m = buildModel();
+  await m.fit(xs, ys, {
+    epochs: EPOCHS,
+    batchSize: 512,
+    validationSplit: 0.1,
+    callbacks: {
+      onEpochEnd: (epoch, logs) => {
+        setStatus(`Epoch ${epoch + 1} — acc: ${(logs.acc * 100).toFixed(1)}%  val: ${(logs.val_acc * 100).toFixed(1)}%`);
+        if (logs.val_acc > bestValAcc) {
+          bestValAcc = logs.val_acc;
+          patienceCount = 0;
+        } else if (++patienceCount >= 2) {
+          m.stopTraining = true;
+        }
+      }
+    }
+  });
+
+  xs.dispose();
+  ys.dispose();
+
+  setStatus('Saving to IndexedDB…');
+  setProgress(95);
+  await m.save(`indexeddb://${MODEL_KEY}`);
+  return m;
+}
+
+// ── Game logic ────────────────────────────────────────────────────────────────
+function nextLetter() {
+  currentLetter    = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+  letterEl.textContent = currentLetter;
+  clearCanvas();
+  stopTimer();
+  feedbackEl.textContent = '';
+  feedbackEl.className   = '';
+  awaitingResult         = false;
+}
+
+function stopTimer() {
+  if (timerRafId) cancelAnimationFrame(timerRafId);
+  timerRafId    = null;
+  drawStartTime = null;
+  timerBar.style.width = '100%';
+}
+
+function startTimer() {
+  if (drawStartTime !== null) return;
+  drawStartTime = Date.now();
+  const tick = () => {
+    const elapsed = Date.now() - drawStartTime;
+    timerBar.style.width = Math.max(0, 100 - (elapsed / TIME_LIMIT_MS) * 100) + '%';
+    if (elapsed < TIME_LIMIT_MS && !awaitingResult)
+      timerRafId = requestAnimationFrame(tick);
+  };
+  timerRafId = requestAnimationFrame(tick);
+}
+
+// Score: flat base + speed bonus, scaled by streak multiplier
+function calcScore(elapsedMs) {
+  const speedBonus  = Math.max(0, Math.round(200 * (1 - elapsedMs / TIME_LIMIT_MS)));
+  const streakMult  = 1 + Math.min(streak, 8) * 0.2; // up to 2.6× at 8-streak
+  return Math.round((100 + speedBonus) * streakMult);
+}
+
+function speedLabel(elapsedMs) {
+  if (elapsedMs < 1000) return '⚡ Lightning!';
+  if (elapsedMs < 2500) return '🔥 Blazing!';
+  if (elapsedMs < 4000) return '👍 Nice!';
+  return '✓ Correct';
+}
+
+function spawnScorePopup(pts) {
+  const rect = canvas.getBoundingClientRect();
+  const el   = document.createElement('div');
+  el.className   = 'score-popup';
+  el.textContent = `+${pts}`;
+  el.style.left  = (rect.left + rect.width  / 2 - 30) + 'px';
+  el.style.top   = (rect.top  - 10) + 'px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+async function runPrediction() {
+  if (!model || awaitingResult) return;
+  awaitingResult = true;
+
+  const elapsed = drawStartTime ? Date.now() - drawStartTime : TIME_LIMIT_MS;
+
+  const predTensor = tf.tidy(() => model.predict(canvasToTensor()));
+  const probs    = Array.from(await predTensor.data());
+  predTensor.dispose();
+
+  const classIdx = probs.indexOf(Math.max(...probs));
+  const guessed = LETTERS[classIdx];
+  const correct = guessed === currentLetter;
+
+  if (correct) {
+    streak++;
+    const pts = calcScore(elapsed);
+    score    += pts;
+    scoreEl.textContent  = `${score} pts`;
+    streakEl.textContent = `🔥 ${streak}`;
+    feedbackEl.textContent = speedLabel(elapsed);
+    feedbackEl.className   = 'feedback-correct';
+    spawnScorePopup(pts);
+    setTimeout(nextLetter, 850);
+  } else {
+    streak = 0;
+    streakEl.textContent   = '🔥 0';
+    feedbackEl.textContent = `Looks like "${guessed}" — try again`;
+    feedbackEl.className   = 'feedback-wrong';
+    canvas.classList.add('shake');
+    canvas.addEventListener('animationend', () => canvas.classList.remove('shake'), { once: true });
+    awaitingResult = false; // let them redraw
+  }
+}
+
+// ── Canvas drawing ────────────────────────────────────────────────────────────
+function getPos(e) {
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const src    = e.touches ? e.touches[0] : e;
+  return {
+    x: (src.clientX - rect.left) * scaleX,
+    y: (src.clientY - rect.top)  * scaleY
+  };
+}
+
+let drawing = false;
+
+function onDown(e) {
+  e.preventDefault();
+  drawing = true;
+  startTimer();
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+function onMove(e) {
+  e.preventDefault();
+  if (!drawing) return;
+  const p = getPos(e);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+}
+function onUp(e) {
+  e.preventDefault();
+  drawing = false;
+  runPrediction();
+}
+
+canvas.addEventListener('mousedown',  onDown, { passive: false });
+canvas.addEventListener('mousemove',  onMove, { passive: false });
+canvas.addEventListener('mouseup',    onUp,   { passive: false });
+canvas.addEventListener('touchstart', onDown, { passive: false });
+canvas.addEventListener('touchmove',  onMove, { passive: false });
+canvas.addEventListener('touchend',   onUp,   { passive: false });
+
+function clearCanvas() {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function canvasToTensor() {
+  // Find the bounding box of drawn strokes so we can crop + center,
+  // matching how EMNIST images are preprocessed
+  const full = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let minX = canvas.width, maxX = -1, minY = canvas.height, maxY = -1;
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const i = (y * canvas.width + x) * 4;
+      if ((full[i] + full[i+1] + full[i+2]) / 3 < 200) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const tmp  = document.createElement('canvas');
+  tmp.width  = 28;
+  tmp.height = 28;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#fff';
+  tctx.fillRect(0, 0, 28, 28);
+
+  if (maxX >= minX) {
+    // Crop to bounding box, make square, add 20% padding on each side
+    const size   = Math.max(maxX - minX + 1, maxY - minY + 1);
+    const pad    = Math.round(size * 0.2);
+    const cx     = (minX + maxX) / 2;
+    const cy     = (minY + maxY) / 2;
+    const src    = size + pad * 2;
+    tctx.drawImage(canvas, cx - src / 2, cy - src / 2, src, src, 0, 0, 28, 28);
+  } else {
+    tctx.drawImage(canvas, 0, 0, 28, 28);
+  }
+
+  const d   = tctx.getImageData(0, 0, 28, 28).data;
+  const raw = new Float32Array(28 * 28);
+  for (let i = 0; i < d.length; i += 4)
+    raw[i / 4] = 1 - (d[i] + d[i+1] + d[i+2]) / 3 / 255;
+
+  return tf.tensor4d(raw, [1, 28, 28, 1]);
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setProgress(pct) { progressBar.style.width = pct + '%'; }
+function setStatus(msg)    { statusEl.textContent = msg; }
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function init() {
+  setStatus('Loading model…');
+  setProgress(5);
+
+  // 1. Pre-trained weights shipped alongside the page (fastest — no training needed)
+  let m = await tryLoadFile();
+  if (m) {
+    setProgress(100);
+    setStatus('Model ready!');
+  } else {
+    // 2. Model previously trained and cached in this browser
+    setStatus('Checking for saved model…');
+    m = await tryLoadCached();
+    if (m) {
+      setProgress(100);
+      setStatus('Model ready!');
+    } else {
+      // 3. First-ever load: train from EMNIST data (slow, saved to IndexedDB after)
+      try {
+        m = await trainFromEMNIST();
+      } catch (err) {
+        if (err.message === 'fetch_failed') {
+          setStatus('Could not load training data — see instructions below.');
+          errorBox.style.display = 'block';
+        } else {
+          setStatus('Training error — check the console.');
+          console.error(err);
+        }
+        return;
+      }
+    }
+  }
+
+  model = m;
+  await tf.nextFrame(); // let the UI breathe before swapping screens
+  loadingScreen.style.display = 'none';
+  gameScreen.style.display    = 'block';
+  nextLetter();
+}
+
+init();
+</script>
+
+</body>
+</html>
