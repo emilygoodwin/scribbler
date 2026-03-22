@@ -79,6 +79,14 @@
       font-weight: 700;
     }
     #score-display { font-weight: 900; color: #e76f51; font-size: 1.05rem; }
+    #shop-btn {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 2px 4px;
+      line-height: 1;
+    }
 
     /* Order ticket */
     /* Cake display */
@@ -165,13 +173,17 @@
         0 0 0 6px #ffd6e7;
       position: relative;
     }
-    /* Sprinkle dots on the frosting */
+    /* Sprinkles — only visible after upgrade */
     #frosting-ring::before,
     #frosting-ring::after {
       content: '';
       position: absolute;
       border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.4s;
     }
+    #frosting-ring.has-sprinkles::before,
+    #frosting-ring.has-sprinkles::after { opacity: 1; }
     #frosting-ring::before {
       width: 8px; height: 3px;
       background: #a8e6cf;
@@ -195,6 +207,101 @@
         -20px  20px 0 2px #a8e6cf,
         -60px   5px 0 2px #ffd93d,
         -15px -55px 0 2px #c7b3ff;
+    }
+
+    /* Candles */
+    .candle {
+      position: absolute;
+      width: 10px;
+      bottom: calc(100% - 10px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 20px;
+      line-height: 1;
+      pointer-events: none;
+      animation: flicker 1.5s ease-in-out infinite alternate;
+    }
+    .candle:nth-child(1) { left: 18%; }
+    .candle:nth-child(2) { left: 50%; transform: translateX(-50%); }
+    .candle:nth-child(3) { right: 18%; }
+    @keyframes flicker {
+      0%   { filter: brightness(1);   transform: scale(1); }
+      100% { filter: brightness(1.2); transform: scale(1.05); }
+    }
+    .candle:nth-child(2) { animation-delay: 0.3s; }
+    .candle:nth-child(3) { animation-delay: 0.6s; }
+
+    /* Color swatches */
+    #color-selector {
+      display: none;
+      gap: 8px;
+      margin-top: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #color-selector.visible { display: flex; }
+    .color-swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .color-swatch.selected { border-color: #8b4513; transform: scale(1.2); }
+
+    /* Shop overlay */
+    #shop-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #shop-overlay.show { display: flex; }
+    #shop-card {
+      background: #fff8f0;
+      border-radius: 24px;
+      padding: 24px 22px;
+      max-width: 340px;
+      width: 92%;
+      border: 3px solid #f4a261;
+    }
+    #shop-card h2 {
+      font-family: 'Pacifico', cursive;
+      color: #8b4513;
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+    .upgrade-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0dcc8;
+    }
+    .upgrade-row:last-child { border-bottom: none; }
+    .upgrade-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .upgrade-info { flex: 1; text-align: left; }
+    .upgrade-name { font-weight: 900; color: #8b4513; font-size: 0.95rem; }
+    .upgrade-desc { font-size: 0.78rem; color: #a0785a; margin-top: 1px; }
+    .upgrade-btn {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+    .upgrade-btn.owned  { background: #d4f0e0; color: #2d9e6b; }
+    .upgrade-btn.affordable { background: #f4a261; color: white; }
+    .upgrade-btn.affordable:hover { background: #e07e3a; }
+    .upgrade-btn.costly { background: #f0e8de; color: #b0907a; cursor: not-allowed; }
+    #shop-close {
+      margin-top: 16px;
+      width: 100%;
+      background: #f0e8de;
+      color: #8b4513;
     }
 
     canvas {
@@ -329,6 +436,7 @@
     <span id="shop-title">The Cake Shop</span>
     <span id="level-badge">Apprentice</span>
     <span id="score-display">$0</span>
+    <button id="shop-btn" onclick="openShop()" title="Upgrade Shop">🛍️</button>
   </div>
 
   <div id="cake-display">
@@ -342,6 +450,7 @@
       <canvas id="canvas" width="280" height="280"></canvas>
     </div>
     <div id="cake-liner"></div>
+    <div id="color-selector"></div>
     <div id="controls">
       <button onclick="clearCanvas()">Clear</button>
     </div>
@@ -349,6 +458,15 @@
 
   <div id="feedback"></div>
 
+</div>
+
+<!-- Shop overlay -->
+<div id="shop-overlay">
+  <div id="shop-card">
+    <h2>🛍️ Upgrade Shop</h2>
+    <div id="upgrade-list"></div>
+    <button id="shop-close" onclick="closeShop()">Back to baking!</button>
+  </div>
 </div>
 
 <!-- Promotion overlay -->
@@ -381,9 +499,27 @@ const LEVELS = [
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MODEL_KEY   = 'emnist-letters-v1';
 const LETTERS     = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-// Letters that require two strokes (stem + dot/crossbar)
 const MIN_STROKES = { 'i': 2, 'I': 2, 't': 2, 'T': 2 };
 const STROKE_HINT = { 'i': 'Now add the dot!', 'I': 'Now add the dot!', 't': 'Now add the crossbar!', 'T': 'Now add the crossbar!' };
+
+// ── Upgrades ──────────────────────────────────────────────────────────────────
+const UPGRADES = [
+  { id: 'sprinkles',      icon: '🍬', name: 'Sprinkles',       cost: 50,  desc: 'Add colorful sprinkles to your frosting!' },
+  { id: 'frosting-colors', icon: '🎨', name: 'Frosting Colors', cost: 150, desc: 'Unlock 6 frosting colors to choose from!' },
+  { id: 'candles',        icon: '🕯️',  name: 'Birthday Candles', cost: 300, desc: 'Add three festive candles to your cake!' },
+];
+
+const FROSTING_COLORS = [
+  { name: 'Pink',   bg: 'radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc)', shadow: '#e89ab5, 0 0 0 4px #fff0f5, 0 0 0 6px #ffd6e7' },
+  { name: 'Blue',   bg: 'radial-gradient(circle at 30% 30%, #bde0fe, #90c7f7)', shadow: '#6aabec, 0 0 0 4px #f0f7ff, 0 0 0 6px #bde0fe' },
+  { name: 'Mint',   bg: 'radial-gradient(circle at 30% 30%, #b7f5c8, #7de49a)', shadow: '#5bc97a, 0 0 0 4px #f0fff5, 0 0 0 6px #b7f5c8' },
+  { name: 'Purple', bg: 'radial-gradient(circle at 30% 30%, #d4b3ff, #b388ff)', shadow: '#9c6fdb, 0 0 0 4px #f8f0ff, 0 0 0 6px #d4b3ff' },
+  { name: 'Yellow', bg: 'radial-gradient(circle at 30% 30%, #fff3b0, #ffe066)', shadow: '#e6c832, 0 0 0 4px #fffdf0, 0 0 0 6px #fff3b0' },
+  { name: 'Orange', bg: 'radial-gradient(circle at 30% 30%, #ffd6a5, #ffb347)', shadow: '#e0922a, 0 0 0 4px #fff8f0, 0 0 0 6px #ffd6a5' },
+];
+
+const purchased       = new Set();
+let   frostingColorIdx = 0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let model          = null;
@@ -678,6 +814,91 @@ function canvasToTensor() {
   return tf.tensor4d(raw, [1, 28, 28, 1]);
 }
 
+// ── Upgrade shop ──────────────────────────────────────────────────────────────
+function applyFrostingColor() {
+  const c = FROSTING_COLORS[frostingColorIdx];
+  const ring = $('frosting-ring');
+  ring.style.background  = c.bg;
+  ring.style.boxShadow   = `0 4px 0 ${c.shadow}`;
+}
+
+function applyUpgrades() {
+  const ring = $('frosting-ring');
+
+  // Sprinkles
+  ring.classList.toggle('has-sprinkles', purchased.has('sprinkles'));
+
+  // Candles — rebuild each time
+  ring.querySelectorAll('.candle').forEach(el => el.remove());
+  if (purchased.has('candles')) {
+    ['🕯️', '🕯️', '🕯️'].forEach(emoji => {
+      const c = document.createElement('span');
+      c.className   = 'candle';
+      c.textContent = emoji;
+      ring.appendChild(c);
+    });
+  }
+
+  // Frosting colors — show/hide swatch row
+  const sel = $('color-selector');
+  if (purchased.has('frosting-colors')) {
+    sel.classList.add('visible');
+    applyFrostingColor();
+  }
+}
+
+function renderShop() {
+  const list = $('upgrade-list');
+  list.innerHTML = '';
+  UPGRADES.forEach(u => {
+    const owned      = purchased.has(u.id);
+    const canAfford  = score >= u.cost;
+    const row = document.createElement('div');
+    row.className = 'upgrade-row';
+    row.innerHTML = `
+      <span class="upgrade-icon">${u.icon}</span>
+      <div class="upgrade-info">
+        <div class="upgrade-name">${u.name}</div>
+        <div class="upgrade-desc">${u.desc}</div>
+      </div>
+      <button class="upgrade-btn ${owned ? 'owned' : canAfford ? 'affordable' : 'costly'}"
+              ${owned || !canAfford ? 'disabled' : `onclick="buyUpgrade('${u.id}')"`}>
+        ${owned ? 'Owned' : `$${u.cost}`}
+      </button>`;
+    list.appendChild(row);
+  });
+}
+
+function buyUpgrade(id) {
+  const u = UPGRADES.find(u => u.id === id);
+  if (!u || purchased.has(id) || score < u.cost) return;
+  score -= u.cost;
+  scoreEl.textContent = `$${score}`;
+  purchased.add(id);
+  applyUpgrades();
+  renderShop(); // refresh button states
+}
+
+function openShop()  { renderShop(); $('shop-overlay').classList.add('show'); }
+function closeShop() { $('shop-overlay').classList.remove('show'); }
+
+function buildColorSelector() {
+  const sel = $('color-selector');
+  FROSTING_COLORS.forEach((c, i) => {
+    const swatch = document.createElement('button');
+    swatch.className   = 'color-swatch' + (i === 0 ? ' selected' : '');
+    swatch.style.background = c.bg;
+    swatch.title       = c.name;
+    swatch.onclick     = () => {
+      frostingColorIdx = i;
+      sel.querySelectorAll('.color-swatch').forEach((s, j) =>
+        s.classList.toggle('selected', j === i));
+      applyFrostingColor();
+    };
+    sel.appendChild(swatch);
+  });
+}
+
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function setProgress(pct) { progressBar.style.width = pct + '%'; }
 function setStatus(msg)    { statusEl.textContent = msg; }
@@ -706,6 +927,7 @@ async function init() {
   await tf.nextFrame();
   loadingScreen.style.display = 'none';
   gameScreen.style.display    = 'block';
+  buildColorSelector();
   newOrder();
 }
 
