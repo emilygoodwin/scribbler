@@ -338,9 +338,10 @@ let score          = 0;
 let levelIdx       = 0;
 let currentWord    = '';
 let currentSlot    = 0;
-let awaitingResult = false;
-let pendingPromo   = false;
-let strokeCount    = 0;
+let awaitingResult   = false;
+let pendingPromo     = false;
+let strokeCount      = 0;
+let canvasSnapshot   = null; // visible canvas state at the start of the current letter slot
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -427,6 +428,7 @@ function newOrder() {
 
   renderSlots();
   clearAll();
+  saveSnapshot();
   feedbackEl.textContent = '';
   feedbackEl.className   = '';
 }
@@ -476,6 +478,7 @@ async function runPrediction() {
     } else {
       // ── Next letter ──
       renderSlots();
+      saveSnapshot();
       feedbackEl.textContent = '✓ Keep going!';
       feedbackEl.className   = 'feedback-correct';
       awaitingResult         = false;
@@ -565,7 +568,11 @@ canvas.addEventListener('touchmove',  onMove, { passive: false });
 canvas.addEventListener('touchend',   onUp,   { passive: false });
 
 // Clear only the hidden work canvas (between letters — display canvas keeps previous marks)
+function saveSnapshot() {
+  canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
 function clearWork() {
+  if (canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0);
   wctx.fillStyle = '#fff';
   wctx.fillRect(0, 0, canvas.width, canvas.height);
   strokeCount = 0;
@@ -575,8 +582,9 @@ function clearAll() {
   ctx.fillStyle  = '#fffcf9';  ctx.fillRect(0, 0, canvas.width, canvas.height);
   wctx.fillStyle = '#fff';     wctx.fillRect(0, 0, canvas.width, canvas.height);
   strokeCount = 0;
+  canvasSnapshot = null;
 }
-// Clear button — redo just the current letter, keep previous letters visible
+// Clear button — erase current letter's strokes, restore previous letters
 function clearCanvas() { clearWork(); }
 
 // ── Canvas → tensor ───────────────────────────────────────────────────────────
