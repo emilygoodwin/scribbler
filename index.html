@@ -370,6 +370,8 @@ async function trainFromEMNIST() {
 function nextLetter() {
   currentLetter    = PROMPT_LETTERS[Math.floor(Math.random() * PROMPT_LETTERS.length)];
   letterEl.textContent = currentLetter;
+  document.getElementById('prompt-label').textContent =
+    currentLetter === currentLetter.toUpperCase() ? 'Write uppercase' : 'Write lowercase';
   clearCanvas();
   stopTimer();
   feedbackEl.textContent = '';
