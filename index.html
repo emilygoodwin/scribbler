@@ -391,6 +391,55 @@
       60%       { transform: translateX(10px); }
     }
     .shake { animation: shake 0.3s ease; }
+
+    /* ── Tutorial overlay ── */
+    #tutorial-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 24px;
+    }
+    #tutorial-overlay.show { display: flex; }
+    #tutorial-bubble {
+      background: #fff8f0;
+      border: 3px solid #f4a261;
+      border-radius: 24px;
+      padding: 20px 20px 16px;
+      max-width: 360px;
+      width: 100%;
+      position: relative;
+    }
+    #tutorial-bubble::after {
+      content: '👨‍🍳';
+      position: absolute;
+      font-size: 3rem;
+      bottom: calc(100% - 4px);
+      left: 20px;
+    }
+    #tutorial-bubble p {
+      font-size: 1rem;
+      color: #5a3010;
+      line-height: 1.55;
+      margin-bottom: 16px;
+      padding-top: 8px;
+    }
+    #tutorial-bubble button {
+      background: #f4a261;
+      color: white;
+      padding: 9px 24px;
+      font-size: 0.95rem;
+      float: right;
+    }
+    #tutorial-bubble button:hover { background: #e07e3a; }
+    #tutorial-bubble::before {
+      content: '';
+      display: block;
+      clear: both;
+    }
   </style>
 </head>
 <body>
@@ -435,6 +484,14 @@
 
   <div id="feedback"></div>
 
+</div>
+
+<!-- Tutorial overlay -->
+<div id="tutorial-overlay">
+  <div id="tutorial-bubble">
+    <p id="tutorial-msg"></p>
+    <button id="tutorial-btn" onclick="nextTutorialStep()">Got it!</button>
+  </div>
 </div>
 
 <!-- Shop overlay -->
@@ -482,12 +539,13 @@ const STROKE_HINT = { 'i': 'Now add the dot!', 'I': 'Now add the dot!', 't': 'No
 // ── Upgrades & frosting colors ────────────────────────────────────────────────
 // Pink is always available for free; others are purchased individually.
 const FROSTING_COLORS = [
-  { id: 'pink',   name: 'Pink',   free: true,  bg: 'radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc)', shadow: '#e89ab5, 0 0 0 4px #fff0f5, 0 0 0 6px #ffd6e7', pen: '#c45a82' },
-  { id: 'blue',   name: 'Blue',   cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #bde0fe, #90c7f7)', shadow: '#6aabec, 0 0 0 4px #f0f7ff, 0 0 0 6px #bde0fe', pen: '#3a80c8' },
-  { id: 'mint',   name: 'Mint',   cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #b7f5c8, #7de49a)', shadow: '#5bc97a, 0 0 0 4px #f0fff5, 0 0 0 6px #b7f5c8', pen: '#2a9a58' },
-  { id: 'purple', name: 'Purple', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #d4b3ff, #b388ff)', shadow: '#9c6fdb, 0 0 0 4px #f8f0ff, 0 0 0 6px #d4b3ff', pen: '#7a4dc8' },
-  { id: 'yellow', name: 'Yellow', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #fff3b0, #ffe066)', shadow: '#e6c832, 0 0 0 4px #fffdf0, 0 0 0 6px #fff3b0', pen: '#b89010' },
-  { id: 'orange', name: 'Orange', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #ffd6a5, #ffb347)', shadow: '#e0922a, 0 0 0 4px #fff8f0, 0 0 0 6px #ffd6a5', pen: '#c06010' },
+  { id: 'pink',      name: 'Pink',      free: true, bg: 'radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc)', shadow: '#e89ab5, 0 0 0 4px #fff0f5, 0 0 0 6px #ffd6e7', pen: '#c45a82' },
+  { id: 'chocolate', name: 'Chocolate', cost: 10,   bg: 'radial-gradient(circle at 30% 30%, #a06040, #7a4020)', shadow: '#5a2e10, 0 0 0 4px #fff5f0, 0 0 0 6px #c08060', pen: '#5a2e10' },
+  { id: 'blue',      name: 'Blue',      cost: 100,  bg: 'radial-gradient(circle at 30% 30%, #bde0fe, #90c7f7)', shadow: '#6aabec, 0 0 0 4px #f0f7ff, 0 0 0 6px #bde0fe', pen: '#3a80c8' },
+  { id: 'mint',      name: 'Mint',      cost: 100,  bg: 'radial-gradient(circle at 30% 30%, #b7f5c8, #7de49a)', shadow: '#5bc97a, 0 0 0 4px #f0fff5, 0 0 0 6px #b7f5c8', pen: '#2a9a58' },
+  { id: 'purple',    name: 'Purple',    cost: 100,  bg: 'radial-gradient(circle at 30% 30%, #d4b3ff, #b388ff)', shadow: '#9c6fdb, 0 0 0 4px #f8f0ff, 0 0 0 6px #d4b3ff', pen: '#7a4dc8' },
+  { id: 'yellow',    name: 'Yellow',    cost: 100,  bg: 'radial-gradient(circle at 30% 30%, #fff3b0, #ffe066)', shadow: '#e6c832, 0 0 0 4px #fffdf0, 0 0 0 6px #fff3b0', pen: '#b89010' },
+  { id: 'orange',    name: 'Orange',    cost: 100,  bg: 'radial-gradient(circle at 30% 30%, #ffd6a5, #ffb347)', shadow: '#e0922a, 0 0 0 4px #fff8f0, 0 0 0 6px #ffd6a5', pen: '#c06010' },
 ];
 
 const SPRINKLE_UPGRADE = { id: 'sprinkles', icon: '🍬', name: 'Sprinkles', cost: 50, desc: 'Add colorful sprinkles to your frosting!' };
@@ -504,7 +562,9 @@ let currentSlot    = 0;
 let awaitingResult   = false;
 let pendingPromo     = false;
 let strokeCount      = 0;
-let canvasSnapshot   = null; // visible canvas state at the start of the current letter slot
+let canvasSnapshot   = null;
+let tutorialStep     = 0;   // 0 = not started, 1 = step 1 shown, 2 = done
+let firstOrderDone   = false;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -627,8 +687,14 @@ async function runPrediction() {
         pendingPromo = true;
       }
 
+      const isFirstOrder = !firstOrderDone;
+      firstOrderDone = true;
+
       setTimeout(() => {
-        if (pendingPromo) {
+        if (isFirstOrder) {
+          showShopHint();
+          newOrder();
+        } else if (pendingPromo) {
           pendingPromo = false;
           showPromo();
         } else {
@@ -788,6 +854,51 @@ function canvasToTensor() {
   return tf.tensor4d(raw, [1, 28, 28, 1]);
 }
 
+// ── Tutorial ──────────────────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  {
+    msg: "Welcome to the bakery! 🎂 Since this is your first day as an apprentice, we'll start with one-letter cupcakes while you get the hang of things.",
+    btn: "Sounds good!",
+  },
+  {
+    msg: "Draw the letter shown on the cupcake below. When you're done drawing, I'll check if it's right!",
+    btn: "Let's bake! 🎂",
+  },
+];
+
+function showTutorial() {
+  tutorialStep = 0;
+  showTutorialStep();
+}
+
+function showTutorialStep() {
+  const step = TUTORIAL_STEPS[tutorialStep];
+  $('tutorial-msg').textContent = step.msg;
+  $('tutorial-btn').textContent = step.btn;
+  $('tutorial-overlay').classList.add('show');
+}
+
+function nextTutorialStep() {
+  tutorialStep++;
+  if (tutorialStep < TUTORIAL_STEPS.length) {
+    showTutorialStep();
+  } else {
+    $('tutorial-overlay').classList.remove('show');
+  }
+}
+
+function showShopHint() {
+  $('tutorial-msg').textContent =
+    "Great work! 🌟 You earned $10 — just enough to buy Chocolate Frosting in the shop! Tap 🛍️ to check it out.";
+  $('tutorial-btn').textContent = "Show me! 🛍️";
+  $('tutorial-btn').onclick = () => {
+    $('tutorial-overlay').classList.remove('show');
+    $('tutorial-btn').onclick = nextTutorialStep; // restore default
+    openShop();
+  };
+  $('tutorial-overlay').classList.add('show');
+}
+
 // ── Upgrade shop ──────────────────────────────────────────────────────────────
 function selectColor(id) {
   selectedColorId = id;
@@ -909,6 +1020,7 @@ async function init() {
   loadingScreen.style.display = 'none';
   gameScreen.style.display    = 'block';
   newOrder();
+  showTutorial();
 }
 
 init();
