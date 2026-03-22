@@ -81,29 +81,17 @@
     #score-display { font-weight: 900; color: #e76f51; font-size: 1.05rem; }
 
     /* Order ticket */
-    #order-ticket {
-      background: #fff8f0;
-      border: 2px dashed #f4a261;
-      border-radius: 12px;
-      padding: 8px 16px;
-      margin-bottom: 12px;
-      font-size: 0.85rem;
-      color: #8b4513;
-    }
-
     /* Cake display */
     #cake-display {
       background: #fff8f0;
       border: 2px solid #f0dcc8;
       border-radius: 20px;
-      padding: 18px 16px 14px;
+      padding: 14px 16px 16px;
       margin-bottom: 12px;
     }
     #cake-label {
-      font-size: 0.72rem;
-      color: #c4956a;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-size: 0.88rem;
+      color: #8b4513;
       margin-bottom: 12px;
     }
     #slots-container {
@@ -343,12 +331,8 @@
     <span id="score-display">$0</span>
   </div>
 
-  <div id="order-ticket">
-    📋 New order: <strong id="order-desc">a cupcake</strong>!
-  </div>
-
   <div id="cake-display">
-    <div id="cake-label">Pipe your frosting here</div>
+    <div id="cake-label">📋 New order: <strong id="order-desc">a cupcake</strong> that says:</div>
     <div id="slots-container"></div>
   </div>
 
@@ -491,9 +475,7 @@ function newOrder() {
   awaitingResult = false;
 
   levelBadge.textContent = lvl.title;
-  orderDesc.textContent  = lvl.wordLen === 1
-    ? `a ${lvl.item}`
-    : `a ${lvl.item} that says "${currentWord}"`;
+  orderDesc.textContent = `a ${lvl.item}`;
 
   renderSlots();
   clearAll();
