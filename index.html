@@ -214,6 +214,7 @@ const TRAINING_N      = 30000; // samples used — more = more accurate, slower 
 const EPOCHS          = 20;  // early stopping will kick in well before this
 const TIME_LIMIT_MS   = 6000;  // how long the speed timer runs before zeroing out bonus
 const LETTERS         = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const PROMPT_LETTERS  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let model          = null;
@@ -367,7 +368,7 @@ async function trainFromEMNIST() {
 
 // ── Game logic ────────────────────────────────────────────────────────────────
 function nextLetter() {
-  currentLetter    = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+  currentLetter    = PROMPT_LETTERS[Math.floor(Math.random() * PROMPT_LETTERS.length)];
   letterEl.textContent = currentLetter;
   clearCanvas();
   stopTimer();
@@ -432,7 +433,7 @@ async function runPrediction() {
 
   const classIdx = probs.indexOf(Math.max(...probs));
   const guessed = LETTERS[classIdx];
-  const correct = guessed === currentLetter;
+  const correct = classIdx === currentLetter.toUpperCase().charCodeAt(0) - 65;
 
   if (correct) {
     streak++;
