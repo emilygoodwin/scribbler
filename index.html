@@ -154,30 +154,96 @@
       color: #e76f51;
     }
 
-    /* Drawing area */
+    /* ── Cupcake drawing area ── */
     #draw-area {
-      background: white;
-      border-radius: 20px;
-      border: 2px solid #f0dcc8;
-      padding: 12px 12px 10px;
+      background: transparent;
+      border: none;
+      padding: 0;
       margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    #draw-label { font-size: 0.78rem; color: #c4956a; margin-bottom: 8px; }
+    #draw-label { font-size: 0.78rem; color: #c4956a; margin-bottom: 10px; }
+
+    /* Frosting ring around the canvas */
+    #frosting-ring {
+      background: radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc);
+      border-radius: 50%;
+      padding: 14px;
+      box-shadow:
+        0 4px 0 #e89ab5,
+        0 0 0 4px #fff0f5,
+        0 0 0 6px #ffd6e7;
+      position: relative;
+    }
+    /* Sprinkle dots on the frosting */
+    #frosting-ring::before,
+    #frosting-ring::after {
+      content: '';
+      position: absolute;
+      border-radius: 2px;
+    }
+    #frosting-ring::before {
+      width: 8px; height: 3px;
+      background: #a8e6cf;
+      top: 18%; left: 12%;
+      transform: rotate(-30deg);
+      box-shadow:
+        30px  10px 0 2px #ffd93d,
+        -10px 40px 0 2px #ff6b6b,
+        50px  50px 0 2px #a8e6cf,
+        10px  70px 0 2px #ffd93d,
+        60px  20px 0 2px #ff6b6b,
+        -5px  80px 0 2px #c7b3ff;
+    }
+    #frosting-ring::after {
+      width: 6px; height: 3px;
+      background: #ffd93d;
+      top: 60%; right: 8%;
+      transform: rotate(20deg);
+      box-shadow:
+        -40px -30px 0 2px #ff6b6b,
+        -20px  20px 0 2px #a8e6cf,
+        -60px   5px 0 2px #ffd93d,
+        -15px -55px 0 2px #c7b3ff;
+    }
 
     canvas {
-      border-radius: 12px;
+      border-radius: 50%;
       background: #fffcf9;
       touch-action: none;
       cursor: crosshair;
       display: block;
-      margin: 0 auto;
-      border: 1.5px solid #ecddd0;
       /* display size — scales up for iPad while keeping 280×280 internal resolution */
-      width: min(82vw, 340px);
-      height: min(82vw, 340px);
+      width: min(68vw, 280px);
+      height: min(68vw, 280px);
     }
 
-    #controls { margin-top: 8px; }
+    /* Cupcake liner below the frosting */
+    #cake-liner {
+      width: min(72vw, 300px);
+      background: repeating-linear-gradient(
+        to right,
+        #e8c49a 0px, #e8c49a 10px,
+        #d4a574 10px, #d4a574 20px
+      );
+      height: 64px;
+      clip-path: polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%);
+      margin-top: -2px;
+      border-radius: 0 0 8px 8px;
+      position: relative;
+    }
+    /* Liner top ridge */
+    #cake-liner::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 8px;
+      background: #c49060;
+    }
+
+    #controls { margin-top: 10px; }
     button {
       padding: 7px 20px;
       border: none;
@@ -287,8 +353,11 @@
   </div>
 
   <div id="draw-area">
-    <div id="draw-label">Draw on the canvas below ↓</div>
-    <canvas id="canvas" width="280" height="280"></canvas>
+    <div id="draw-label">Pipe your letter in the frosting ↓</div>
+    <div id="frosting-ring">
+      <canvas id="canvas" width="280" height="280"></canvas>
+    </div>
+    <div id="cake-liner"></div>
     <div id="controls">
       <button onclick="clearCanvas()">Clear</button>
     </div>
