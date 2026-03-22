@@ -2,155 +2,251 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Handwriting Sprint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>The Cake Shop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@tensorflow/tfjs@4.0.0/dist/tf.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #1a1a2e;
-      color: #eee;
+      font-family: 'Nunito', sans-serif;
+      background: #fef6e4;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
+      padding: 16px;
     }
 
     /* ── Loading screen ── */
-    #loading-screen { text-align: center; max-width: 400px; width: 100%; }
-    #loading-screen h2 { font-size: 1.6rem; margin-bottom: 8px; }
-    #loading-screen p.subtitle { color: #9ca3af; font-size: 0.9rem; margin-bottom: 20px; }
+    #loading-screen { text-align: center; max-width: 380px; width: 100%; }
+    #loading-screen h2 {
+      font-family: 'Pacifico', cursive;
+      font-size: 2rem;
+      color: #8b4513;
+      margin-bottom: 8px;
+    }
+    #loading-screen .subtitle { color: #a0785a; margin-bottom: 24px; }
     #progress-container {
-      background: #2a2a4e;
+      background: #f0dcc8;
       border-radius: 8px;
-      height: 12px;
+      height: 14px;
       overflow: hidden;
       margin: 16px 0;
     }
     #progress-bar {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #6c63ff, #a78bfa);
+      background: linear-gradient(90deg, #f4a261, #e76f51);
       border-radius: 8px;
       transition: width 0.4s ease;
     }
-    #loading-status { color: #a78bfa; font-size: 0.9rem; min-height: 1.4em; }
+    #loading-status { color: #a0785a; font-size: 0.9rem; }
     #error-box {
       display: none;
       margin-top: 20px;
       padding: 16px;
-      background: #3b1a1a;
-      border: 1px solid #7f1d1d;
+      background: #fff0f0;
+      border: 1px solid #fca5a5;
       border-radius: 10px;
       font-size: 0.85rem;
-      color: #fca5a5;
-      text-align: left;
+      color: #dc2626;
       line-height: 1.6;
-    }
-    #error-box code {
-      display: block;
-      background: #1f2937;
-      padding: 8px 10px;
-      border-radius: 6px;
-      margin: 8px 0;
-      color: #e2e8f0;
-      font-size: 0.8rem;
-      word-break: break-all;
     }
 
     /* ── Game screen ── */
-    #game-screen { display: none; text-align: center; width: 100%; max-width: 360px; }
+    #game-screen { display: none; width: 100%; max-width: 440px; text-align: center; }
 
-    #hud {
+    /* Header */
+    #header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 16px;
-      background: #16213e;
-      border-radius: 12px;
-      margin-bottom: 16px;
-    }
-    #score-display { font-size: 1.2rem; font-weight: 700; }
-    #streak-display { font-size: 1rem; color: #fbbf24; font-weight: 600; }
-
-    #prompt-label { font-size: 0.8rem; color: #9ca3af; margin-bottom: 2px; letter-spacing: 0.05em; text-transform: uppercase; }
-    #letter-display {
-      font-size: 9rem;
-      font-weight: 900;
-      line-height: 1;
-      color: #fff;
-      text-shadow: 0 0 50px rgba(168, 139, 250, 0.5);
-      margin-bottom: 8px;
-    }
-
-    #timer-container {
-      background: #2a2a4e;
-      border-radius: 6px;
-      height: 7px;
+      padding: 8px 14px;
+      background: #fff8f0;
+      border-radius: 16px;
+      border: 2px solid #f0dcc8;
       margin-bottom: 12px;
-      overflow: hidden;
     }
-    #timer-bar {
-      height: 100%;
-      width: 100%;
-      border-radius: 6px;
-      background: linear-gradient(90deg, #34d399, #fbbf24, #ef4444);
-      transform-origin: left;
+    #shop-title { font-family: 'Pacifico', cursive; color: #8b4513; font-size: 1.05rem; }
+    #level-badge {
+      background: #f4a261;
+      color: white;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
     }
+    #score-display { font-weight: 900; color: #e76f51; font-size: 1.05rem; }
+
+    /* Order ticket */
+    #order-ticket {
+      background: #fff8f0;
+      border: 2px dashed #f4a261;
+      border-radius: 12px;
+      padding: 8px 16px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      color: #8b4513;
+    }
+
+    /* Cake display */
+    #cake-display {
+      background: #fff8f0;
+      border: 2px solid #f0dcc8;
+      border-radius: 20px;
+      padding: 18px 16px 14px;
+      margin-bottom: 12px;
+    }
+    #cake-label {
+      font-size: 0.72rem;
+      color: #c4956a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    #slots-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .letter-slot {
+      width: 68px;
+      height: 76px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .letter-slot .letter { font-size: 2.4rem; line-height: 1; }
+
+    .letter-slot.pending {
+      background: #f0e8de;
+      border: 2px solid #d4c4b0;
+    }
+    .letter-slot.pending .letter {
+      color: #c4a882;
+      font-weight: 900;
+    }
+    .letter-slot.active {
+      background: #fff3e8;
+      border: 2.5px solid #f4a261;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .letter-slot.active .letter {
+      color: #c47a3a;
+      font-weight: 900;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(244,162,97,0.2); }
+      50%       { box-shadow: 0 0 0 9px rgba(244,162,97,0.08); }
+    }
+    .letter-slot.done {
+      background: #fff0eb;
+      border: 2px solid #f9d4c4;
+    }
+    .letter-slot.done .letter {
+      font-family: 'Pacifico', cursive;
+      color: #e76f51;
+    }
+
+    /* Drawing area */
+    #draw-area {
+      background: white;
+      border-radius: 20px;
+      border: 2px solid #f0dcc8;
+      padding: 12px 12px 10px;
+      margin-bottom: 10px;
+    }
+    #draw-label { font-size: 0.78rem; color: #c4956a; margin-bottom: 8px; }
 
     canvas {
-      border-radius: 16px;
-      background: #fff;
+      border-radius: 12px;
+      background: #fffcf9;
       touch-action: none;
       cursor: crosshair;
       display: block;
       margin: 0 auto;
-      box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5);
-      width: 280px;
-      height: 280px;
+      border: 1.5px solid #ecddd0;
+      /* display size — scales up for iPad while keeping 280×280 internal resolution */
+      width: min(82vw, 340px);
+      height: min(82vw, 340px);
     }
 
-    #controls { margin-top: 12px; }
+    #controls { margin-top: 8px; }
     button {
-      padding: 9px 22px;
+      padding: 7px 20px;
       border: none;
-      border-radius: 8px;
-      font-size: 0.9rem;
+      border-radius: 20px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
       cursor: pointer;
-      font-weight: 600;
-      background: #374151;
-      color: #e5e7eb;
+      background: #f0e8de;
+      color: #8b4513;
       transition: background 0.15s;
     }
-    button:hover { background: #4b5563; }
+    button:hover { background: #e0d0c0; }
 
-    #feedback {
-      min-height: 1.8rem;
-      margin-top: 12px;
-      font-size: 1.05rem;
-      font-weight: 600;
+    /* Feedback */
+    #feedback { min-height: 1.6rem; font-size: 1rem; font-weight: 700; }
+    .feedback-correct { color: #2d9e6b; }
+    .feedback-wrong   { color: #e63946; }
+
+    /* Promotion overlay */
+    #promo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
     }
-    .feedback-correct { color: #34d399; }
-    .feedback-wrong   { color: #f87171; }
+    #promo-overlay.show { display: flex; }
+    #promo-card {
+      background: #fff8f0;
+      border-radius: 24px;
+      padding: 32px 28px;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+      border: 3px solid #f4a261;
+    }
+    #promo-card h2 {
+      font-family: 'Pacifico', cursive;
+      color: #8b4513;
+      font-size: 1.7rem;
+      margin-bottom: 10px;
+    }
+    #promo-card p { color: #a0785a; margin-bottom: 22px; line-height: 1.5; }
+    #promo-card button {
+      background: #f4a261;
+      color: white;
+      padding: 10px 28px;
+      font-size: 1rem;
+    }
+    #promo-card button:hover { background: #e07e3a; }
 
-    /* floating score popup */
+    /* Score popup */
     .score-popup {
       position: fixed;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 900;
-      color: #fbbf24;
+      color: #e76f51;
       pointer-events: none;
       z-index: 999;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      font-family: 'Nunito', sans-serif;
       animation: floatUp 0.9s ease-out forwards;
     }
     @keyframes floatUp {
-      0%   { opacity: 1; transform: translateY(0)    scale(1);   }
-      100% { opacity: 0; transform: translateY(-70px) scale(1.3); }
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(1.2); }
     }
-
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
       20%       { transform: translateX(-10px); }
@@ -161,304 +257,252 @@
 </head>
 <body>
 
-<!-- ── Loading / Training Screen ── -->
+<!-- Loading screen -->
 <div id="loading-screen">
-  <h2>Handwriting Sprint ✏️</h2>
-  <p class="subtitle">Setting up your letter trainer…</p>
+  <h2>The Cake Shop 🎂</h2>
+  <p class="subtitle">Warming up the ovens…</p>
   <div id="progress-container"><div id="progress-bar"></div></div>
-  <p id="loading-status">Checking for saved model…</p>
-
+  <p id="loading-status">Getting ready…</p>
   <div id="error-box">
-    <strong>Missing EMNIST data files</strong><br>
-    Download the EMNIST Letters dataset and place two files in a <code>data/</code>
-    folder next to <code>index.html</code>:
-    <code>emnist-letters-train-images-idx3-ubyte</code>
-    <code>emnist-letters-train-labels-idx1-ubyte</code>
-    Get them from:
-    <code>https://www.nist.gov/itl/products-and-services/emnist-dataset</code>
-    Download the "gzip" archive → extract → copy those two files → reload this page.
-    Training takes ~1–2 min and is cached after that.
+    Something went wrong loading the game. Try refreshing the page!
   </div>
 </div>
 
-<!-- ── Game Screen ── -->
+<!-- Game screen -->
 <div id="game-screen">
-  <div id="hud">
+
+  <div id="header">
+    <span id="shop-title">The Cake Shop</span>
+    <span id="level-badge">Apprentice</span>
     <span id="score-display">0 pts</span>
-    <span id="streak-display">🔥 0</span>
   </div>
 
-  <div id="prompt-label">Write this letter</div>
-  <div id="letter-display">A</div>
-
-  <div id="timer-container"><div id="timer-bar"></div></div>
-
-  <canvas id="canvas" width="280" height="280"></canvas>
-
-  <div id="controls">
-    <button onclick="clearCanvas()">Clear</button>
+  <div id="order-ticket">
+    📋 New order: <strong id="order-desc">a cupcake</strong>!
   </div>
+
+  <div id="cake-display">
+    <div id="cake-label">Pipe your frosting here</div>
+    <div id="slots-container"></div>
+  </div>
+
+  <div id="draw-area">
+    <div id="draw-label">Draw on the canvas below ↓</div>
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <div id="controls">
+      <button onclick="clearCanvas()">Clear</button>
+    </div>
+  </div>
+
   <div id="feedback"></div>
 
+</div>
 
+<!-- Promotion overlay -->
+<div id="promo-overlay">
+  <div id="promo-card">
+    <h2>Promoted! 🎉</h2>
+    <p id="promo-text"></p>
+    <button onclick="dismissPromo()">Let's bake!</button>
+  </div>
 </div>
 
 <script>
-// ── Config ────────────────────────────────────────────────────────────────────
-// Point these at the two EMNIST Letters IDX files (see error box above for details)
-const EMNIST_IMAGES_URL = './data/emnist-letters-train-images-idx3-ubyte';
-const EMNIST_LABELS_URL = './data/emnist-letters-train-labels-idx1-ubyte';
+// ── Word lists ─────────────────────────────────────────────────────────────────
+const WORD_LISTS = {
+  1: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''),
+  2: ['an','as','at','be','by','do','go','he','if','in','is','it','me','my','no','of','on','or','so','to','up','us','we'],
+  3: ['all','and','are','big','but','can','did','for','fun','get','got','had','has','her','him','his','how','let','not','now','old','one','our','out','own','ran','red','run','saw','say','see','she','sit','six','ten','the','too','two','use','was','way','who','why','yes','yet','you'],
+  4: ['away','been','blue','call','came','come','find','five','four','from','give','good','have','help','here','home','into','jump','just','keep','kind','know','like','live','long','look','made','make','many','must','need','open','over','play','pull','read','ride','said','same','show','sing','slow','some','soon','stop','take','tell','that','them','then','they','this','time','told','turn','very','walk','want','warm','wash','went','were','when','will','wish','with','work','year','your'],
+};
 
-const MODEL_KEY       = 'emnist-letters-v1';
-const TRAINING_N      = 30000; // samples used — more = more accurate, slower first load
-const EPOCHS          = 20;  // early stopping will kick in well before this
-const TIME_LIMIT_MS   = 6000;  // how long the speed timer runs before zeroing out bonus
-const LETTERS         = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-const PROMPT_LETTERS  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+// ── Levels ─────────────────────────────────────────────────────────────────────
+// threshold: score needed to reach this level
+const LEVELS = [
+  { title: 'Apprentice', wordLen: 1, pts: 10, threshold: 0,   item: 'cupcake'          },
+  { title: 'Assistant',  wordLen: 2, pts: 25, threshold: 150, item: 'small cake'        },
+  { title: 'Decorator',  wordLen: 3, pts: 50, threshold: 400, item: 'layer cake'        },
+  { title: 'Head Baker', wordLen: 4, pts: 80, threshold: 800, item: 'celebration cake'  },
+];
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const MODEL_KEY = 'emnist-letters-v1';
+const LETTERS   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let model          = null;
-let currentLetter  = '';
 let score          = 0;
-let streak         = 0;
-let drawStartTime  = null;  // set on first pen-down, null between rounds
-let timerRafId     = null;
+let levelIdx       = 0;
+let currentWord    = '';
+let currentSlot    = 0;
 let awaitingResult = false;
+let pendingPromo   = false;
 
-// ── DOM ───────────────────────────────────────────────────────────────────────
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-const loadingScreen = $('loading-screen');
-const gameScreen    = $('game-screen');
-const progressBar   = $('progress-bar');
-const statusEl      = $('loading-status');
-const errorBox      = $('error-box');
-const letterEl      = $('letter-display');
-const timerBar      = $('timer-bar');
-const feedbackEl    = $('feedback');
-const scoreEl       = $('score-display');
-const streakEl      = $('streak-display');
-const canvas        = $('canvas');
-const ctx           = canvas.getContext('2d');
+const loadingScreen  = $('loading-screen');
+const gameScreen     = $('game-screen');
+const progressBar    = $('progress-bar');
+const statusEl       = $('loading-status');
+const slotsContainer = $('slots-container');
+const orderDesc      = $('order-desc');
+const feedbackEl     = $('feedback');
+const scoreEl        = $('score-display');
+const levelBadge     = $('level-badge');
+const canvas         = $('canvas');
+const ctx            = canvas.getContext('2d');
+const promoOverlay   = $('promo-overlay');
+const promoText      = $('promo-text');
 
-ctx.lineWidth   = 18;
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+ctx.lineWidth   = 20;
 ctx.lineCap     = 'round';
 ctx.lineJoin    = 'round';
-ctx.strokeStyle = '#111';
-
-// Paint white so pixel data is never transparent
-ctx.fillStyle = '#fff';
+ctx.strokeStyle = '#3d2314';
+ctx.fillStyle   = '#fffcf9';
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-// ── Model: architecture ───────────────────────────────────────────────────────
-function buildModel() {
-  const m = tf.sequential();
-  m.add(tf.layers.conv2d({ inputShape: [28, 28, 1], filters: 32, kernelSize: 3, activation: 'relu', padding: 'same' }));
-  m.add(tf.layers.maxPooling2d({ poolSize: 2 }));
-  m.add(tf.layers.conv2d({ filters: 64, kernelSize: 3, activation: 'relu', padding: 'same' }));
-  m.add(tf.layers.maxPooling2d({ poolSize: 2 }));
-  m.add(tf.layers.flatten());
-  m.add(tf.layers.dense({ units: 128, activation: 'relu' }));
-  m.add(tf.layers.dropout({ rate: 0.3 }));
-  m.add(tf.layers.dense({ units: 26, activation: 'softmax' }));
-  m.compile({ optimizer: 'adam', loss: 'sparseCategoricalCrossentropy', metrics: ['acc'] });
-  return m;
-}
-
-// ── Model: load helpers ───────────────────────────────────────────────────────
+// ── Model loading ──────────────────────────────────────────────────────────────
 async function tryLoadFile() {
-  try {
-    return await tf.loadLayersModel('./model/model.json');
-  } catch { return null; }
+  try { return await tf.loadLayersModel('./model/model.json'); } catch { return null; }
 }
-
 async function tryLoadCached() {
-  try {
-    return await tf.loadLayersModel(`indexeddb://${MODEL_KEY}`);
-  } catch { return null; }
+  try { return await tf.loadLayersModel(`indexeddb://${MODEL_KEY}`); } catch { return null; }
 }
 
-// ── EMNIST data loading ───────────────────────────────────────────────────────
-// IDX3: magic(4) count(4) rows(4) cols(4) then raw bytes
-function parseIDX3(buf) {
-  const v = new DataView(buf);
-  if (v.getUint32(0) !== 0x00000803) throw new Error('Bad IDX3 magic');
-  return { data: new Uint8Array(buf, 16), count: v.getUint32(4), rows: v.getUint32(8), cols: v.getUint32(12) };
-}
-// IDX1: magic(4) count(4) then bytes
-function parseIDX1(buf) {
-  if (new DataView(buf).getUint32(0) !== 0x00000801) throw new Error('Bad IDX1 magic');
-  return { data: new Uint8Array(buf, 8), count: new DataView(buf).getUint32(4) };
-}
-
-// EMNIST stores images transposed — fix with transpose only
-function fixOrientation(src, rows, cols) {
-  const dst = new Uint8Array(rows * cols);
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++)
-      dst[r * cols + c] = src[c * cols + r];
-  return dst;
-}
-
-async function trainFromEMNIST() {
-  setStatus('Fetching EMNIST data…');
-  let imgBuf, lblBuf;
-  try {
-    [imgBuf, lblBuf] = await Promise.all([
-      fetch(EMNIST_IMAGES_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
-      fetch(EMNIST_LABELS_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
-    ]);
-  } catch (e) {
-    throw new Error('fetch_failed');
+// ── Level helpers ─────────────────────────────────────────────────────────────
+function calcLevelIdx() {
+  let idx = 0;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (score >= LEVELS[i].threshold) idx = i;
   }
-
-  setStatus('Processing…');
-  setProgress(10);
-
-  const imgs = parseIDX3(imgBuf);
-  const lbls = parseIDX1(lblBuf);
-  const n    = Math.min(imgs.count, TRAINING_N);
-  const { rows, cols } = imgs;
-
-
-  // Build input tensor
-  const xs = tf.tidy(() => {
-    const flat = new Float32Array(n * rows * cols);
-    for (let i = 0; i < n; i++) {
-      const raw   = imgs.data.subarray(i * rows * cols, (i + 1) * rows * cols);
-      const fixed = fixOrientation(raw, rows, cols);
-      for (let p = 0; p < fixed.length; p++)
-        flat[i * rows * cols + p] = fixed[p] / 255;
-    }
-    return tf.tensor4d(flat, [n, rows, cols, 1]);
-  });
-
-  // EMNIST Letters labels are 1–26; shift to 0–25
-  const ys = tf.tensor1d(Array.from(lbls.data.subarray(0, n)).map(v => v - 1), 'float32');
-
-  setStatus(`Training on ${n} samples…`);
-  setProgress(15);
-
-  let bestValAcc = -Infinity, patienceCount = 0;
-  const m = buildModel();
-  await m.fit(xs, ys, {
-    epochs: EPOCHS,
-    batchSize: 512,
-    validationSplit: 0.1,
-    callbacks: {
-      onEpochEnd: (epoch, logs) => {
-        setStatus(`Epoch ${epoch + 1} — acc: ${(logs.acc * 100).toFixed(1)}%  val: ${(logs.val_acc * 100).toFixed(1)}%`);
-        if (logs.val_acc > bestValAcc) {
-          bestValAcc = logs.val_acc;
-          patienceCount = 0;
-        } else if (++patienceCount >= 2) {
-          m.stopTraining = true;
-        }
-      }
-    }
-  });
-
-  xs.dispose();
-  ys.dispose();
-
-  setStatus('Saving to IndexedDB…');
-  setProgress(95);
-  await m.save(`indexeddb://${MODEL_KEY}`);
-  return m;
+  return idx;
 }
 
-// ── Game logic ────────────────────────────────────────────────────────────────
-function nextLetter() {
-  currentLetter    = PROMPT_LETTERS[Math.floor(Math.random() * PROMPT_LETTERS.length)];
-  letterEl.textContent = currentLetter;
-  document.getElementById('prompt-label').textContent =
-    currentLetter === currentLetter.toUpperCase() ? 'Write uppercase' : 'Write lowercase';
+function pickWord(len) {
+  const list = WORD_LISTS[len];
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+// ── Slot rendering ────────────────────────────────────────────────────────────
+function renderSlots() {
+  slotsContainer.innerHTML = '';
+  for (let i = 0; i < currentWord.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'letter-slot ' + (i < currentSlot ? 'done' : i === currentSlot ? 'active' : 'pending');
+    const letter = document.createElement('div');
+    letter.className = 'letter';
+    letter.textContent = currentWord[i];
+    slot.appendChild(letter);
+    slotsContainer.appendChild(slot);
+  }
+}
+
+// ── New order ─────────────────────────────────────────────────────────────────
+function newOrder() {
+  const lvl   = LEVELS[levelIdx];
+  currentWord = pickWord(lvl.wordLen);
+  currentSlot = 0;
+  awaitingResult = false;
+
+  levelBadge.textContent = lvl.title;
+  orderDesc.textContent  = lvl.wordLen === 1
+    ? `a ${lvl.item}`
+    : `a ${lvl.item} that says "${currentWord}"`;
+
+  renderSlots();
   clearCanvas();
-  stopTimer();
   feedbackEl.textContent = '';
   feedbackEl.className   = '';
-  awaitingResult         = false;
 }
 
-function stopTimer() {
-  if (timerRafId) cancelAnimationFrame(timerRafId);
-  timerRafId    = null;
-  drawStartTime = null;
-  timerBar.style.width = '100%';
+// ── Prediction ────────────────────────────────────────────────────────────────
+async function runPrediction() {
+  if (!model || awaitingResult) return;
+  awaitingResult = true;
+
+  const predTensor = tf.tidy(() => model.predict(canvasToTensor()));
+  const probs      = Array.from(await predTensor.data());
+  predTensor.dispose();
+
+  const classIdx = probs.indexOf(Math.max(...probs));
+  const target   = currentWord[currentSlot];
+  const correct  = classIdx === target.toUpperCase().charCodeAt(0) - 65;
+
+  if (correct) {
+    currentSlot++;
+    clearCanvas();
+
+    if (currentSlot >= currentWord.length) {
+      // ── Order complete ──
+      renderSlots();
+      const pts = LEVELS[levelIdx].pts;
+      score    += pts;
+      scoreEl.textContent = `${score} pts`;
+      feedbackEl.textContent = '🎂 Order done!';
+      feedbackEl.className   = 'feedback-correct';
+      spawnScorePopup(pts);
+
+      const newIdx = calcLevelIdx();
+      if (newIdx > levelIdx) {
+        levelIdx     = newIdx;
+        pendingPromo = true;
+      }
+
+      setTimeout(() => {
+        if (pendingPromo) {
+          pendingPromo = false;
+          showPromo();
+        } else {
+          newOrder();
+        }
+      }, 900);
+
+    } else {
+      // ── Next letter ──
+      renderSlots();
+      feedbackEl.textContent = '✓ Keep going!';
+      feedbackEl.className   = 'feedback-correct';
+      awaitingResult         = false;
+    }
+
+  } else {
+    feedbackEl.textContent = 'Keep trying!';
+    feedbackEl.className   = 'feedback-wrong';
+    canvas.classList.add('shake');
+    canvas.addEventListener('animationend', () => canvas.classList.remove('shake'), { once: true });
+    awaitingResult = false;
+  }
 }
 
-function startTimer() {
-  if (drawStartTime !== null) return;
-  drawStartTime = Date.now();
-  const tick = () => {
-    const elapsed = Date.now() - drawStartTime;
-    timerBar.style.width = Math.max(0, 100 - (elapsed / TIME_LIMIT_MS) * 100) + '%';
-    if (elapsed < TIME_LIMIT_MS && !awaitingResult)
-      timerRafId = requestAnimationFrame(tick);
-  };
-  timerRafId = requestAnimationFrame(tick);
+// ── Promotion ─────────────────────────────────────────────────────────────────
+function showPromo() {
+  const lvl = LEVELS[levelIdx];
+  promoText.textContent = `You're now a ${lvl.title}! `
+    + `Time to decorate ${lvl.item}s with whole words.`;
+  promoOverlay.classList.add('show');
 }
 
-// Score: flat base + speed bonus, scaled by streak multiplier
-function calcScore(elapsedMs) {
-  const speedBonus  = Math.max(0, Math.round(200 * (1 - elapsedMs / TIME_LIMIT_MS)));
-  const streakMult  = 1 + Math.min(streak, 8) * 0.2; // up to 2.6× at 8-streak
-  return Math.round((100 + speedBonus) * streakMult);
+function dismissPromo() {
+  promoOverlay.classList.remove('show');
+  newOrder();
 }
 
-function speedLabel(elapsedMs) {
-  if (elapsedMs < 1000) return '⚡ Lightning!';
-  if (elapsedMs < 2500) return '🔥 Blazing!';
-  if (elapsedMs < 4000) return '👍 Nice!';
-  return '✓ Correct';
-}
-
+// ── Score popup ───────────────────────────────────────────────────────────────
 function spawnScorePopup(pts) {
   const rect = canvas.getBoundingClientRect();
   const el   = document.createElement('div');
   el.className   = 'score-popup';
   el.textContent = `+${pts}`;
-  el.style.left  = (rect.left + rect.width  / 2 - 30) + 'px';
-  el.style.top   = (rect.top  - 10) + 'px';
+  el.style.left  = (rect.left + rect.width / 2 - 24) + 'px';
+  el.style.top   = (rect.top - 10) + 'px';
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
 }
 
-async function runPrediction() {
-  if (!model || awaitingResult) return;
-  awaitingResult = true;
-
-  const elapsed = drawStartTime ? Date.now() - drawStartTime : TIME_LIMIT_MS;
-
-  const predTensor = tf.tidy(() => model.predict(canvasToTensor()));
-  const probs    = Array.from(await predTensor.data());
-  predTensor.dispose();
-
-  const classIdx = probs.indexOf(Math.max(...probs));
-  const guessed = LETTERS[classIdx];
-  const correct = classIdx === currentLetter.toUpperCase().charCodeAt(0) - 65;
-
-  if (correct) {
-    streak++;
-    const pts = calcScore(elapsed);
-    score    += pts;
-    scoreEl.textContent  = `${score} pts`;
-    streakEl.textContent = `🔥 ${streak}`;
-    feedbackEl.textContent = speedLabel(elapsed);
-    feedbackEl.className   = 'feedback-correct';
-    spawnScorePopup(pts);
-    setTimeout(nextLetter, 850);
-  } else {
-    streak = 0;
-    streakEl.textContent   = '🔥 0';
-    feedbackEl.textContent = `Looks like "${guessed}" — try again`;
-    feedbackEl.className   = 'feedback-wrong';
-    canvas.classList.add('shake');
-    canvas.addEventListener('animationend', () => canvas.classList.remove('shake'), { once: true });
-    awaitingResult = false; // let them redraw
-  }
-}
-
 // ── Canvas drawing ────────────────────────────────────────────────────────────
+let drawing = false;
+
 function getPos(e) {
   const rect   = canvas.getBoundingClientRect();
   const scaleX = canvas.width  / rect.width;
@@ -466,16 +510,13 @@ function getPos(e) {
   const src    = e.touches ? e.touches[0] : e;
   return {
     x: (src.clientX - rect.left) * scaleX,
-    y: (src.clientY - rect.top)  * scaleY
+    y: (src.clientY - rect.top)  * scaleY,
   };
 }
-
-let drawing = false;
 
 function onDown(e) {
   e.preventDefault();
   drawing = true;
-  startTimer();
   const p = getPos(e);
   ctx.beginPath();
   ctx.moveTo(p.x, p.y);
@@ -501,51 +542,42 @@ canvas.addEventListener('touchmove',  onMove, { passive: false });
 canvas.addEventListener('touchend',   onUp,   { passive: false });
 
 function clearCanvas() {
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fffcf9';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+// ── Canvas → tensor ───────────────────────────────────────────────────────────
 function canvasToTensor() {
-  // Find the bounding box of drawn strokes so we can crop + center,
-  // matching how EMNIST images are preprocessed
   const full = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   let minX = canvas.width, maxX = -1, minY = canvas.height, maxY = -1;
   for (let y = 0; y < canvas.height; y++) {
     for (let x = 0; x < canvas.width; x++) {
       const i = (y * canvas.width + x) * 4;
       if ((full[i] + full[i+1] + full[i+2]) / 3 < 200) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
       }
     }
   }
-
   const tmp  = document.createElement('canvas');
-  tmp.width  = 28;
-  tmp.height = 28;
+  tmp.width  = tmp.height = 28;
   const tctx = tmp.getContext('2d');
   tctx.fillStyle = '#fff';
   tctx.fillRect(0, 0, 28, 28);
-
   if (maxX >= minX) {
-    // Crop to bounding box, make square, add 20% padding on each side
-    const size   = Math.max(maxX - minX + 1, maxY - minY + 1);
-    const pad    = Math.round(size * 0.2);
-    const cx     = (minX + maxX) / 2;
-    const cy     = (minY + maxY) / 2;
-    const src    = size + pad * 2;
-    tctx.drawImage(canvas, cx - src / 2, cy - src / 2, src, src, 0, 0, 28, 28);
+    const size = Math.max(maxX - minX + 1, maxY - minY + 1);
+    const pad  = Math.round(size * 0.2);
+    const cx   = (minX + maxX) / 2;
+    const cy   = (minY + maxY) / 2;
+    const src  = size + pad * 2;
+    tctx.drawImage(canvas, cx - src/2, cy - src/2, src, src, 0, 0, 28, 28);
   } else {
     tctx.drawImage(canvas, 0, 0, 28, 28);
   }
-
   const d   = tctx.getImageData(0, 0, 28, 28).data;
   const raw = new Float32Array(28 * 28);
   for (let i = 0; i < d.length; i += 4)
-    raw[i / 4] = 1 - (d[i] + d[i+1] + d[i+2]) / 3 / 255;
-
+    raw[i/4] = 1 - (d[i] + d[i+1] + d[i+2]) / 3 / 255;
   return tf.tensor4d(raw, [1, 28, 28, 1]);
 }
 
@@ -555,43 +587,29 @@ function setStatus(msg)    { statusEl.textContent = msg; }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init() {
-  setStatus('Loading model…');
+  setStatus('Opening the shop…');
   setProgress(5);
 
-  // 1. Pre-trained weights shipped alongside the page (fastest — no training needed)
   let m = await tryLoadFile();
   if (m) {
     setProgress(100);
-    setStatus('Model ready!');
   } else {
-    // 2. Model previously trained and cached in this browser
-    setStatus('Checking for saved model…');
+    setStatus('Checking for saved recipe…');
     m = await tryLoadCached();
     if (m) {
       setProgress(100);
-      setStatus('Model ready!');
     } else {
-      // 3. First-ever load: train from EMNIST data (slow, saved to IndexedDB after)
-      try {
-        m = await trainFromEMNIST();
-      } catch (err) {
-        if (err.message === 'fetch_failed') {
-          setStatus('Could not load training data — see instructions below.');
-          errorBox.style.display = 'block';
-        } else {
-          setStatus('Training error — check the console.');
-          console.error(err);
-        }
-        return;
-      }
+      setStatus('Could not load — please try refreshing!');
+      $('error-box').style.display = 'block';
+      return;
     }
   }
 
   model = m;
-  await tf.nextFrame(); // let the UI breathe before swapping screens
+  await tf.nextFrame();
   loadingScreen.style.display = 'none';
   gameScreen.style.display    = 'block';
-  nextLetter();
+  newOrder();
 }
 
 init();
