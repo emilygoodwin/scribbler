@@ -209,29 +209,6 @@
         -15px -55px 0 2px #c7b3ff;
     }
 
-    /* Candles */
-    .candle {
-      position: absolute;
-      width: 10px;
-      bottom: calc(100% - 10px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-size: 20px;
-      line-height: 1;
-      pointer-events: none;
-      animation: flicker 1.5s ease-in-out infinite alternate;
-    }
-    .candle:nth-child(1) { left: 18%; }
-    .candle:nth-child(2) { left: 50%; transform: translateX(-50%); }
-    .candle:nth-child(3) { right: 18%; }
-    @keyframes flicker {
-      0%   { filter: brightness(1);   transform: scale(1); }
-      100% { filter: brightness(1.2); transform: scale(1.05); }
-    }
-    .candle:nth-child(2) { animation-delay: 0.3s; }
-    .candle:nth-child(3) { animation-delay: 0.6s; }
-
     /* Color swatches */
     #color-selector {
       display: none;
@@ -502,24 +479,21 @@ const LETTERS     = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const MIN_STROKES = { 'i': 2, 'I': 2, 't': 2, 'T': 2 };
 const STROKE_HINT = { 'i': 'Now add the dot!', 'I': 'Now add the dot!', 't': 'Now add the crossbar!', 'T': 'Now add the crossbar!' };
 
-// ── Upgrades ──────────────────────────────────────────────────────────────────
-const UPGRADES = [
-  { id: 'sprinkles',      icon: '🍬', name: 'Sprinkles',       cost: 50,  desc: 'Add colorful sprinkles to your frosting!' },
-  { id: 'frosting-colors', icon: '🎨', name: 'Frosting Colors', cost: 150, desc: 'Unlock 6 frosting colors to choose from!' },
-  { id: 'candles',        icon: '🕯️',  name: 'Birthday Candles', cost: 300, desc: 'Add three festive candles to your cake!' },
-];
-
+// ── Upgrades & frosting colors ────────────────────────────────────────────────
+// Pink is always available for free; others are purchased individually.
 const FROSTING_COLORS = [
-  { name: 'Pink',   bg: 'radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc)', shadow: '#e89ab5, 0 0 0 4px #fff0f5, 0 0 0 6px #ffd6e7' },
-  { name: 'Blue',   bg: 'radial-gradient(circle at 30% 30%, #bde0fe, #90c7f7)', shadow: '#6aabec, 0 0 0 4px #f0f7ff, 0 0 0 6px #bde0fe' },
-  { name: 'Mint',   bg: 'radial-gradient(circle at 30% 30%, #b7f5c8, #7de49a)', shadow: '#5bc97a, 0 0 0 4px #f0fff5, 0 0 0 6px #b7f5c8' },
-  { name: 'Purple', bg: 'radial-gradient(circle at 30% 30%, #d4b3ff, #b388ff)', shadow: '#9c6fdb, 0 0 0 4px #f8f0ff, 0 0 0 6px #d4b3ff' },
-  { name: 'Yellow', bg: 'radial-gradient(circle at 30% 30%, #fff3b0, #ffe066)', shadow: '#e6c832, 0 0 0 4px #fffdf0, 0 0 0 6px #fff3b0' },
-  { name: 'Orange', bg: 'radial-gradient(circle at 30% 30%, #ffd6a5, #ffb347)', shadow: '#e0922a, 0 0 0 4px #fff8f0, 0 0 0 6px #ffd6a5' },
+  { id: 'pink',   name: 'Pink',   free: true,  bg: 'radial-gradient(circle at 30% 30%, #ffd6e7, #ffb3cc)', shadow: '#e89ab5, 0 0 0 4px #fff0f5, 0 0 0 6px #ffd6e7', pen: '#c45a82' },
+  { id: 'blue',   name: 'Blue',   cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #bde0fe, #90c7f7)', shadow: '#6aabec, 0 0 0 4px #f0f7ff, 0 0 0 6px #bde0fe', pen: '#3a80c8' },
+  { id: 'mint',   name: 'Mint',   cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #b7f5c8, #7de49a)', shadow: '#5bc97a, 0 0 0 4px #f0fff5, 0 0 0 6px #b7f5c8', pen: '#2a9a58' },
+  { id: 'purple', name: 'Purple', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #d4b3ff, #b388ff)', shadow: '#9c6fdb, 0 0 0 4px #f8f0ff, 0 0 0 6px #d4b3ff', pen: '#7a4dc8' },
+  { id: 'yellow', name: 'Yellow', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #fff3b0, #ffe066)', shadow: '#e6c832, 0 0 0 4px #fffdf0, 0 0 0 6px #fff3b0', pen: '#b89010' },
+  { id: 'orange', name: 'Orange', cost: 100,   bg: 'radial-gradient(circle at 30% 30%, #ffd6a5, #ffb347)', shadow: '#e0922a, 0 0 0 4px #fff8f0, 0 0 0 6px #ffd6a5', pen: '#c06010' },
 ];
 
-const purchased       = new Set();
-let   frostingColorIdx = 0;
+const SPRINKLE_UPGRADE = { id: 'sprinkles', icon: '🍬', name: 'Sprinkles', cost: 50, desc: 'Add colorful sprinkles to your frosting!' };
+
+const purchased     = new Set();
+let selectedColorId = 'pink';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let model          = null;
@@ -815,89 +789,96 @@ function canvasToTensor() {
 }
 
 // ── Upgrade shop ──────────────────────────────────────────────────────────────
-function applyFrostingColor() {
-  const c = FROSTING_COLORS[frostingColorIdx];
+function selectColor(id) {
+  selectedColorId = id;
+  const c = FROSTING_COLORS.find(c => c.id === id);
   const ring = $('frosting-ring');
-  ring.style.background  = c.bg;
-  ring.style.boxShadow   = `0 4px 0 ${c.shadow}`;
+  ring.style.background = c.bg;
+  ring.style.boxShadow  = `0 4px 0 ${c.shadow}`;
+  ctx.strokeStyle  = c.pen;
+  wctx.strokeStyle = c.pen;
+  // Update swatch selection highlight
+  $('color-selector').querySelectorAll('.color-swatch')
+    .forEach(s => s.classList.toggle('selected', s.dataset.id === id));
 }
 
-function applyUpgrades() {
-  const ring = $('frosting-ring');
-
-  // Sprinkles
-  ring.classList.toggle('has-sprinkles', purchased.has('sprinkles'));
-
-  // Candles — rebuild each time
-  ring.querySelectorAll('.candle').forEach(el => el.remove());
-  if (purchased.has('candles')) {
-    ['🕯️', '🕯️', '🕯️'].forEach(emoji => {
-      const c = document.createElement('span');
-      c.className   = 'candle';
-      c.textContent = emoji;
-      ring.appendChild(c);
-    });
-  }
-
-  // Frosting colors — show/hide swatch row
+function rebuildColorSelector() {
   const sel = $('color-selector');
-  if (purchased.has('frosting-colors')) {
-    sel.classList.add('visible');
-    applyFrostingColor();
-  }
+  sel.innerHTML = '';
+  const available = FROSTING_COLORS.filter(c => c.free || purchased.has(c.id));
+  if (available.length <= 1) { sel.classList.remove('visible'); return; }
+  sel.classList.add('visible');
+  available.forEach(c => {
+    const swatch = document.createElement('button');
+    swatch.className        = 'color-swatch' + (c.id === selectedColorId ? ' selected' : '');
+    swatch.style.background = c.bg;
+    swatch.dataset.id       = c.id;
+    swatch.title            = c.name;
+    swatch.onclick          = () => selectColor(c.id);
+    sel.appendChild(swatch);
+  });
 }
 
 function renderShop() {
   const list = $('upgrade-list');
   list.innerHTML = '';
-  UPGRADES.forEach(u => {
-    const owned      = purchased.has(u.id);
-    const canAfford  = score >= u.cost;
+  // Sprinkles row
+  const s = SPRINKLE_UPGRADE;
+  const sOwned = purchased.has(s.id);
+  const sAfford = score >= s.cost;
+  const sRow = document.createElement('div');
+  sRow.className = 'upgrade-row';
+  sRow.innerHTML = `
+    <span class="upgrade-icon">${s.icon}</span>
+    <div class="upgrade-info">
+      <div class="upgrade-name">${s.name}</div>
+      <div class="upgrade-desc">${s.desc}</div>
+    </div>
+    <button class="upgrade-btn ${sOwned ? 'owned' : sAfford ? 'affordable' : 'costly'}"
+            ${sOwned || !sAfford ? 'disabled' : `onclick="buyUpgrade('sprinkles')"`}>
+      ${sOwned ? 'Owned' : `$${s.cost}`}
+    </button>`;
+  list.appendChild(sRow);
+  // Color rows
+  FROSTING_COLORS.filter(c => !c.free).forEach(c => {
+    const owned   = purchased.has(c.id);
+    const afford  = score >= c.cost;
     const row = document.createElement('div');
     row.className = 'upgrade-row';
     row.innerHTML = `
-      <span class="upgrade-icon">${u.icon}</span>
+      <span class="upgrade-icon" style="background:${c.bg};border-radius:50%;width:2rem;height:2rem;display:inline-flex;align-items:center;justify-content:center;">🎨</span>
       <div class="upgrade-info">
-        <div class="upgrade-name">${u.name}</div>
-        <div class="upgrade-desc">${u.desc}</div>
+        <div class="upgrade-name">${c.name} Frosting</div>
+        <div class="upgrade-desc">Pipe in ${c.name.toLowerCase()} — pen color changes too!</div>
       </div>
-      <button class="upgrade-btn ${owned ? 'owned' : canAfford ? 'affordable' : 'costly'}"
-              ${owned || !canAfford ? 'disabled' : `onclick="buyUpgrade('${u.id}')"`}>
-        ${owned ? 'Owned' : `$${u.cost}`}
+      <button class="upgrade-btn ${owned ? 'owned' : afford ? 'affordable' : 'costly'}"
+              ${owned || !afford ? 'disabled' : `onclick="buyUpgrade('${c.id}')"`}>
+        ${owned ? 'Owned' : `$${c.cost}`}
       </button>`;
     list.appendChild(row);
   });
 }
 
 function buyUpgrade(id) {
-  const u = UPGRADES.find(u => u.id === id);
-  if (!u || purchased.has(id) || score < u.cost) return;
-  score -= u.cost;
+  if (purchased.has(id)) return;
+  const item = id === 'sprinkles'
+    ? SPRINKLE_UPGRADE
+    : FROSTING_COLORS.find(c => c.id === id);
+  if (!item || score < item.cost) return;
+  score -= item.cost;
   scoreEl.textContent = `$${score}`;
   purchased.add(id);
-  applyUpgrades();
-  renderShop(); // refresh button states
+  if (id === 'sprinkles') {
+    $('frosting-ring').classList.add('has-sprinkles');
+  } else {
+    rebuildColorSelector();
+    selectColor(id); // auto-switch to the newly bought color
+  }
+  renderShop();
 }
 
 function openShop()  { renderShop(); $('shop-overlay').classList.add('show'); }
 function closeShop() { $('shop-overlay').classList.remove('show'); }
-
-function buildColorSelector() {
-  const sel = $('color-selector');
-  FROSTING_COLORS.forEach((c, i) => {
-    const swatch = document.createElement('button');
-    swatch.className   = 'color-swatch' + (i === 0 ? ' selected' : '');
-    swatch.style.background = c.bg;
-    swatch.title       = c.name;
-    swatch.onclick     = () => {
-      frostingColorIdx = i;
-      sel.querySelectorAll('.color-swatch').forEach((s, j) =>
-        s.classList.toggle('selected', j === i));
-      applyFrostingColor();
-    };
-    sel.appendChild(swatch);
-  });
-}
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function setProgress(pct) { progressBar.style.width = pct + '%'; }
@@ -927,7 +908,6 @@ async function init() {
   await tf.nextFrame();
   loadingScreen.style.display = 'none';
   gameScreen.style.display    = 'block';
-  buildColorSelector();
   newOrder();
 }
 
