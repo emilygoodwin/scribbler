@@ -525,18 +525,75 @@
       letter-spacing: 1px;
       margin-bottom: 8px;
       min-height: 1.1em;
-      transition: opacity 1.8s ease;
     }
-    #mission-briefing.destruct { opacity: 0; }
+    #mission-briefing.destruct { animation: burnOut 0.45s forwards; }
+    @keyframes burnOut {
+      0%   { opacity: 1; color: #3acc5a; }
+      35%  { opacity: 1; color: #ff6600; }
+      65%  { opacity: 0.6; color: #ff2200; }
+      100% { opacity: 0; color: #ff0000; }
+    }
+
+    /* Handler intro overlay */
+    #spy-handler-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #spy-handler-overlay.show { display: flex; }
+    #handler-terminal {
+      background: #040d08;
+      border: 2px solid #00ff41;
+      border-radius: 8px;
+      padding: 24px 22px 20px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 0 30px rgba(0,255,65,0.2);
+    }
+    #handler-terminal .t-header {
+      font-family: 'Courier New', monospace;
+      font-size: 0.6rem;
+      color: #cc0025;
+      letter-spacing: 4px;
+      margin-bottom: 14px;
+    }
+    #handler-terminal .t-msg {
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      color: #00ff41;
+      line-height: 1.8;
+      margin-bottom: 20px;
+      white-space: pre-line;
+    }
+    #handler-terminal .t-msg strong { color: #fff; }
+    #handler-ack {
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      background: #0f2a1a;
+      color: #00ff41;
+      border: 1px solid #1a5a2a;
+      padding: 8px 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      float: right;
+    }
+    #handler-ack:hover { background: #1a4a2a; }
 
     /* Spy slots */
     #spy-slots-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
     .spy-slot { width: 68px; height: 76px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
-    .spy-slot .digit { font-size: 2.4rem; line-height: 1; font-family: 'Courier New', monospace; font-weight: bold; }
+    .spy-slot .digit { font-size: 2.4rem; line-height: 1; font-family: 'Courier New', monospace; font-weight: bold; transition: opacity 0.7s ease; }
     .spy-slot.pending { background: #0a1a0a; border: 2px solid #163016; }
     .spy-slot.pending .digit { color: #1a5a1a; }
     .spy-slot.active  { background: #07200d; border: 2.5px solid #00ff41; animation: spyPulse 1.5s ease-in-out infinite; }
     .spy-slot.active .digit { color: #00ff41; }
+    .spy-slot.active .digit.erased { opacity: 0.04; }
     @keyframes spyPulse {
       0%, 100% { box-shadow: 0 0 0 4px rgba(0,255,65,0.15); }
       50%       { box-shadow: 0 0 0 9px rgba(0,255,65,0.04); }
@@ -676,6 +733,16 @@
 
 <!-- Glitch transition overlay -->
 <div id="glitch-overlay"></div>
+
+<!-- Spy handler overlay -->
+<div id="spy-handler-overlay">
+  <div id="handler-terminal">
+    <div class="t-header">▶ SECURE CHANNEL · HQ · ENCRYPTED ◀</div>
+    <div class="t-msg" id="handler-msg"></div>
+    <button id="handler-ack" onclick="dismissHandler()">ACKNOWLEDGED ▶</button>
+    <div style="clear:both"></div>
+  </div>
+</div>
 
 <!-- Spy screen -->
 <div id="spy-screen">
@@ -1218,12 +1285,33 @@ const SPY_LEVELS = [
   { title: 'MASTER SPY',   digits: 4, pts: 100, threshold: 800, codename: '4-digit code'  },
 ];
 const SPY_BRIEFINGS = [
-  'INTERCEPT THIS. MEMORIZE. TRANSMIT.',
-  'CLASSIFIED TRANSMISSION. ENCODE NOW.',
-  'EYES ONLY. DESTRUCTION IMMINENT.',
-  'FIELD OPERATIVE — ENCODE AND RELAY.',
-  'TOP SECRET. DESTROY AFTER READING.',
-  'URGENT. RELAY CODE BEFORE CONTACT.',
+  'COPY NOW. SIGNAL BURNS ON CONTACT.',
+  'DIGITAL COPY SELF-DESTRUCTS. PEN TO PAPER — GO.',
+  'NO TRACE. TRANSCRIBE BEFORE IT\'S GONE.',
+  'PAPER ONLY. WRITE IT DOWN NOW.',
+  'THE MOMENT YOU DRAW — IT\'S GONE. HURRY.',
+  'EYES ONLY. PAPER IS THE ONLY SAFE COPY.',
+];
+const HANDLER_MSGS = [
+  `<strong>BAKER.</strong> Listen carefully.
+
+Your cover at the bakery is holding. Nobody suspects a thing.
+
+But your real job starts now. We're transmitting today's extraction codes. The moment you put pen to paper, the digital copy begins to destroy itself.
+
+<strong>Paper is the only safe record.</strong> Write fast. Leave no trace.`,
+
+  `<strong>BAKER.</strong> We've picked up enemy signal nearby.
+
+The codes are loaded. You know what to do — the instant you start writing, the original transmission self-destructs. No going back.
+
+Your cover depends on speed. <strong>Get it down before it's gone.</strong>`,
+
+  `<strong>BAKER.</strong> Good work on the last extraction.
+
+More codes incoming. Each one carries a 1-second window from the moment you start writing — after that, the digital original is ash.
+
+<strong>You're the only copy that matters now.</strong>`,
 ];
 
 // ── Spy state ────────────────────────────────────────────────────────────────
@@ -1235,6 +1323,7 @@ let spyAwaiting      = false;
 let spyStrokeCount   = 0;
 let spySnapshot      = null;
 let spyBriefingGone  = false;
+let spyDigitFadeTimer = null;
 
 // ── Spy canvases ─────────────────────────────────────────────────────────────
 const spyCanvas = $('spy-canvas');
@@ -1281,16 +1370,29 @@ function enterSpyMode() {
     spyLevelIdx = calcSpyLevelIdx();
     updateSpyHeader();
     loadDigitModelIfNeeded();
-    newMission();
+    showHandlerBriefing();
   });
 }
 
 function exitSpyMode() {
+  clearTimeout(spyDigitFadeTimer);
   doGlitch(() => {
     document.body.classList.remove('spy-mode');
     $('spy-screen').style.display  = 'none';
     $('game-screen').style.display = 'block';
   });
+}
+
+// ── Handler briefing ──────────────────────────────────────────────────────────
+function showHandlerBriefing() {
+  const msg = HANDLER_MSGS[Math.floor(Math.random() * HANDLER_MSGS.length)];
+  $('handler-msg').innerHTML = msg;
+  $('spy-handler-overlay').classList.add('show');
+}
+
+function dismissHandler() {
+  $('spy-handler-overlay').classList.remove('show');
+  newMission();
 }
 
 async function loadDigitModelIfNeeded() {
@@ -1325,6 +1427,7 @@ function newMission() {
   spySlot         = 0;
   spyAwaiting     = false;
   spyBriefingGone = false;
+  clearTimeout(spyDigitFadeTimer);
 
   const brief = SPY_BRIEFINGS[Math.floor(Math.random() * SPY_BRIEFINGS.length)];
   $('mission-briefing').textContent = brief;
@@ -1332,6 +1435,7 @@ function newMission() {
   $('mission-label').textContent = `📡 MISSION: encode this ${lvl.codename}:`;
 
   renderSpySlots();
+  startDigitFadeTimer();
   clearAllSpy();
   saveSpySnapshot();
   $('spy-feedback').textContent = '';
@@ -1351,6 +1455,15 @@ function renderSpySlots() {
     slot.appendChild(digit);
     container.appendChild(slot);
   }
+}
+
+// ── Digit fade timer ──────────────────────────────────────────────────────────
+function startDigitFadeTimer() {
+  clearTimeout(spyDigitFadeTimer);
+  spyDigitFadeTimer = setTimeout(() => {
+    const activeDigit = $('spy-slots-container').querySelector('.spy-slot.active .digit');
+    if (activeDigit) activeDigit.classList.add('erased');
+  }, 2500);
 }
 
 // ── Spy canvas utils ──────────────────────────────────────────────────────────
@@ -1490,6 +1603,7 @@ async function runSpyPrediction() {
 
     } else {
       renderSpySlots();
+      startDigitFadeTimer();
       saveSpySnapshot();
       $('spy-feedback').textContent = '✓ CONFIRMED';
       $('spy-feedback').className   = 'spy-correct';
