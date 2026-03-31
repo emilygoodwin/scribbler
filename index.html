@@ -2124,14 +2124,25 @@ function clearSpaceDrawCanvas() {
 }
 
 let spaceDrawing = false;
+let spaceStrokeTimer = null;
+
 function getSDrawPos(e) {
   const rect=sDrawCanvas.getBoundingClientRect();
   const src=e.touches?e.touches[0]:e;
   return { x:(src.clientX-rect.left)*sDrawCanvas.width/rect.width, y:(src.clientY-rect.top)*sDrawCanvas.height/rect.height };
 }
-function onSDrawDown(e) { e.preventDefault(); spaceDrawing=true; const p=getSDrawPos(e); sdctx.beginPath();sdctx.moveTo(p.x,p.y); sdwctx.beginPath();sdwctx.moveTo(p.x,p.y); }
+function onSDrawDown(e) {
+  e.preventDefault(); spaceDrawing=true;
+  clearTimeout(spaceStrokeTimer); // cancel pending prediction — new stroke starting
+  const p=getSDrawPos(e); sdctx.beginPath();sdctx.moveTo(p.x,p.y); sdwctx.beginPath();sdwctx.moveTo(p.x,p.y);
+}
 function onSDrawMove(e) { e.preventDefault(); if(!spaceDrawing)return; const p=getSDrawPos(e); sdctx.lineTo(p.x,p.y);sdctx.stroke(); sdwctx.lineTo(p.x,p.y);sdwctx.stroke(); }
-function onSDrawUp(e)   { e.preventDefault(); spaceDrawing=false; spaceRunPrediction(); }
+function onSDrawUp(e) {
+  e.preventDefault(); spaceDrawing=false;
+  // Wait 700ms after last stroke — allows multi-stroke letters (f, t, k, i…)
+  clearTimeout(spaceStrokeTimer);
+  spaceStrokeTimer = setTimeout(() => spaceRunPrediction(), 700);
+}
 
 sDrawCanvas.addEventListener('mousedown', onSDrawDown,{passive:false});
 sDrawCanvas.addEventListener('mousemove', onSDrawMove,{passive:false});
