@@ -653,6 +653,68 @@
     #spy-btn { background: none !important; border: none; font-size: 1.1rem; cursor: pointer; padding: 2px 4px; line-height: 1; opacity: 0.3; transition: opacity 0.3s; }
     #spy-btn:hover { opacity: 0.65; }
 
+    /* Mission counter in spy header */
+    #spy-mission-count {
+      font-family: 'Courier New', monospace;
+      font-size: 0.68rem;
+      color: #3acc5a;
+      letter-spacing: 1px;
+      border: 1px solid #1a4a2a;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    /* Spy promotion overlay */
+    #spy-promo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #spy-promo-overlay.show { display: flex; }
+    #spy-promo-card {
+      background: #040d08;
+      border: 2px solid #cc0025;
+      border-radius: 8px;
+      padding: 24px 22px 20px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 0 30px rgba(204,0,37,0.25);
+    }
+    #spy-promo-card .t-header {
+      font-family: 'Courier New', monospace;
+      font-size: 0.6rem;
+      color: #cc0025;
+      letter-spacing: 4px;
+      margin-bottom: 14px;
+    }
+    #spy-promo-card .t-msg {
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      color: #00ff41;
+      line-height: 1.8;
+      margin-bottom: 20px;
+      white-space: pre-line;
+    }
+    #spy-promo-card .t-msg strong { color: #fff; }
+    #spy-promo-ack {
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      background: #2a0010;
+      color: #ff4466;
+      border: 1px solid #cc0025;
+      padding: 8px 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      float: right;
+    }
+    #spy-promo-ack:hover { background: #3a0018; }
+
     /* No digit model warning */
     #spy-no-model {
       display: none;
@@ -750,6 +812,7 @@
   <div id="spy-header">
     <span id="spy-title">EMILY THE SPY</span>
     <span id="spy-level-badge">ROOKIE</span>
+    <span id="spy-mission-count">00 OPS</span>
     <span id="spy-score">$0</span>
     <button id="spy-back-btn" onclick="exitSpyMode()" title="Back to Bakery">🎂</button>
   </div>
@@ -779,6 +842,16 @@
 
   <div id="spy-feedback"></div>
 
+</div>
+
+<!-- Spy promotion overlay -->
+<div id="spy-promo-overlay">
+  <div id="spy-promo-card">
+    <div class="t-header">▶ PRIORITY TRANSMISSION · HQ · ENCRYPTED ◀</div>
+    <div class="t-msg" id="spy-promo-msg"></div>
+    <button id="spy-promo-ack" onclick="dismissSpyPromo()">UNDERSTOOD ▶</button>
+    <div style="clear:both"></div>
+  </div>
 </div>
 
 <!-- Promotion overlay -->
@@ -1279,10 +1352,33 @@ function setStatus(msg)    { statusEl.textContent = msg; }
 
 // ── Spy config ────────────────────────────────────────────────────────────────
 const SPY_LEVELS = [
-  { title: 'ROOKIE',       digits: 1, pts: 15,  threshold: 0,   codename: '1-digit code'  },
-  { title: 'FIELD AGENT',  digits: 2, pts: 35,  threshold: 150, codename: '2-digit code'  },
-  { title: 'SENIOR AGENT', digits: 3, pts: 65,  threshold: 400, codename: '3-digit code'  },
-  { title: 'MASTER SPY',   digits: 4, pts: 100, threshold: 800, codename: '4-digit code'  },
+  { title: 'ROOKIE',       digits: 1, pts: 15,  threshold: 0,   codename: '1-digit code', fadeMs: 2500 },
+  { title: 'FIELD AGENT',  digits: 2, pts: 35,  threshold: 150, codename: '2-digit code', fadeMs: 1800 },
+  { title: 'SENIOR AGENT', digits: 3, pts: 65,  threshold: 400, codename: '3-digit code', fadeMs: 1200 },
+  { title: 'MASTER SPY',   digits: 4, pts: 100, threshold: 800, codename: '4-digit code', fadeMs: 800  },
+];
+
+const SPY_PROMOS = [
+  // ROOKIE → FIELD AGENT
+  `<strong>BAKER. HQ has noticed your work.</strong>
+
+You're being upgraded to Field Agent clearance. The codes get longer from here — and our transmission windows get shorter.
+
+The enemy is learning our patterns. <strong>You'll need to be faster.</strong>`,
+
+  // FIELD AGENT → SENIOR AGENT
+  `<strong>Agent Baker. They're adapting.</strong>
+
+Senior Agent clearance granted. Our sources indicate the enemy has found a way to accelerate signal decay — transmissions now burn faster than before.
+
+<strong>Don't blink. Don't hesitate.</strong>`,
+
+  // SENIOR AGENT → MASTER SPY
+  `<strong>Agent Baker. This is the highest clearance we can grant.</strong>
+
+These codes are the most sensitive material we handle. One mistake and lives are at risk.
+
+The window is almost nothing now. <strong>You are the last line.</strong>`,
 ];
 const SPY_BRIEFINGS = [
   'COPY NOW. SIGNAL BURNS ON CONTACT.',
@@ -1315,15 +1411,17 @@ More codes incoming. Each one carries a 1-second window from the moment you star
 ];
 
 // ── Spy state ────────────────────────────────────────────────────────────────
-let digitModel       = null;
-let spyLevelIdx      = 0;
-let spyMission       = '';    // e.g. "42"
-let spySlot          = 0;
-let spyAwaiting      = false;
-let spyStrokeCount   = 0;
-let spySnapshot      = null;
-let spyBriefingGone  = false;
+let digitModel        = null;
+let spyLevelIdx       = 0;
+let spyMission        = '';    // e.g. "42"
+let spySlot           = 0;
+let spyAwaiting       = false;
+let spyStrokeCount    = 0;
+let spySnapshot       = null;
+let spyBriefingGone   = false;
 let spyDigitFadeTimer = null;
+let spyMissionCount   = 0;
+let spyPendingPromo   = false;
 
 // ── Spy canvases ─────────────────────────────────────────────────────────────
 const spyCanvas = $('spy-canvas');
@@ -1367,7 +1465,9 @@ function enterSpyMode() {
     document.body.classList.add('spy-mode');
     $('game-screen').style.display = 'none';
     $('spy-screen').style.display  = 'block';
-    spyLevelIdx = calcSpyLevelIdx();
+    spyLevelIdx     = calcSpyLevelIdx();
+    spyMissionCount = 0;
+    spyPendingPromo = false;
     updateSpyHeader();
     loadDigitModelIfNeeded();
     showHandlerBriefing();
@@ -1395,6 +1495,18 @@ function dismissHandler() {
   newMission();
 }
 
+// ── Spy promotion ─────────────────────────────────────────────────────────────
+function showSpyPromo(newLevelIdx) {
+  const msg = SPY_PROMOS[newLevelIdx - 1]; // promo index is 0-based, level 1 = first promo
+  $('spy-promo-msg').innerHTML = msg;
+  $('spy-promo-overlay').classList.add('show');
+}
+
+function dismissSpyPromo() {
+  $('spy-promo-overlay').classList.remove('show');
+  newMission();
+}
+
 async function loadDigitModelIfNeeded() {
   if (digitModel) return;
   try {
@@ -1407,8 +1519,9 @@ async function loadDigitModelIfNeeded() {
 
 // ── Spy header update ─────────────────────────────────────────────────────────
 function updateSpyHeader() {
-  $('spy-level-badge').textContent = SPY_LEVELS[spyLevelIdx].title;
-  $('spy-score').textContent = `$${score}`;
+  $('spy-level-badge').textContent   = SPY_LEVELS[spyLevelIdx].title;
+  $('spy-score').textContent         = `$${score}`;
+  $('spy-mission-count').textContent = String(spyMissionCount).padStart(2, '0') + ' OPS';
 }
 
 // ── Mission generation ────────────────────────────────────────────────────────
@@ -1460,10 +1573,11 @@ function renderSpySlots() {
 // ── Digit fade timer ──────────────────────────────────────────────────────────
 function startDigitFadeTimer() {
   clearTimeout(spyDigitFadeTimer);
+  const delay = SPY_LEVELS[spyLevelIdx].fadeMs;
   spyDigitFadeTimer = setTimeout(() => {
     const activeDigit = $('spy-slots-container').querySelector('.spy-slot.active .digit');
     if (activeDigit) activeDigit.classList.add('erased');
-  }, 2500);
+  }, delay);
 }
 
 // ── Spy canvas utils ──────────────────────────────────────────────────────────
@@ -1589,17 +1703,29 @@ async function runSpyPrediction() {
     if (spySlot >= spyMission.length) {
       // Mission complete
       renderSpySlots();
+      clearTimeout(spyDigitFadeTimer);
       const pts = SPY_LEVELS[spyLevelIdx].pts;
       score    += pts;
-      updateSpyHeader();
-      $('spy-feedback').textContent = '✓ MISSION COMPLETE';
+      spyMissionCount++;
+      $('spy-feedback').textContent = '✓ COPY SECURE';
       $('spy-feedback').className   = 'spy-correct';
       spawnSpyScorePopup(pts);
 
       const newIdx = calcSpyLevelIdx();
-      if (newIdx > spyLevelIdx) spyLevelIdx = newIdx;
+      if (newIdx > spyLevelIdx) {
+        spyPendingPromo = newIdx;
+        spyLevelIdx = newIdx;
+      }
+      updateSpyHeader();
 
-      setTimeout(() => newMission(), 1100);
+      setTimeout(() => {
+        if (spyPendingPromo !== false) {
+          showSpyPromo(spyPendingPromo);
+          spyPendingPromo = false;
+        } else {
+          newMission();
+        }
+      }, 1000);
 
     } else {
       renderSpySlots();
