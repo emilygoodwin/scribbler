@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Trace & Chase</title>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #fff8f0;
+    --primary:  #ff6b6b;
+    --secondary:#ffa94d;
+    --green:    #51cf66;
+    --blue:     #339af0;
+    --purple:   #845ef7;
+    --dark:     #2d2d2d;
+    --card:     #ffffff;
+    --shadow:   0 4px 20px rgba(0,0,0,0.12);
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    overflow-x: hidden;
+    touch-action: none;
+  }
+
+  h1 {
+    font-family: 'Pacifico', cursive;
+    color: var(--primary);
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    margin-bottom: 4px;
+    text-shadow: 2px 2px 0 rgba(255,107,107,0.2);
+  }
+
+  .subtitle {
+    color: #888;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  /* HUD */
+  .hud {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hud-chip {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-weight: 700;
+    font-size: 1rem;
+    box-shadow: var(--shadow);
+    color: var(--dark);
+  }
+  .hud-chip span { color: var(--primary); }
+
+  /* Shape label */
+  .shape-label {
+    font-family: 'Pacifico', cursive;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    color: var(--secondary);
+    text-shadow: 3px 3px 0 rgba(255,169,77,0.25);
+    line-height: 1;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* Canvas card */
+  .canvas-wrap {
+    position: relative;
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    touch-action: none;
+  }
+  #trace-canvas {
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* Instruction banner */
+  .banner {
+    margin-top: 12px;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark);
+    box-shadow: var(--shadow);
+    text-align: center;
+    min-height: 42px;
+    transition: color 0.3s;
+  }
+
+  /* Overlays */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-card {
+    background: var(--card);
+    border-radius: 28px;
+    padding: 36px 40px;
+    text-align: center;
+    max-width: 360px;
+    width: 90%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    animation: popIn 0.35s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .overlay-card h2 {
+    font-family: 'Pacifico', cursive;
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+  .overlay-card p {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 1.05rem;
+    line-height: 1.5;
+  }
+
+  .btn {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 32px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255,107,107,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.95); box-shadow: 0 2px 8px rgba(255,107,107,0.4); }
+  .btn.green { background: var(--green); box-shadow: 0 4px 12px rgba(81,207,102,0.4); }
+  .btn.blue  { background: var(--blue);  box-shadow: 0 4px 12px rgba(51,154,240,0.4); }
+
+  .big-emoji { font-size: 3rem; margin-bottom: 8px; display: block; }
+
+  /* Progress track bar */
+  .progress-bar-wrap {
+    width: min(480px, 90vw);
+    background: #e9ecef;
+    border-radius: 12px;
+    height: 14px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 12px;
+    background: linear-gradient(90deg, var(--green), var(--blue));
+    width: 0%;
+    transition: width 0.15s;
+  }
+
+  /* Level dots */
+  .level-dots {
+    display: flex; gap: 8px; justify-content: center; margin-bottom: 10px;
+  }
+  .level-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #dee2e6;
+    transition: background 0.3s;
+  }
+  .level-dot.done  { background: var(--green); }
+  .level-dot.active { background: var(--secondary); transform: scale(1.2); }
+
+  /* Winning flash */
+  @keyframes celebrate {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+  }
+  .celebrating { animation: celebrate 0.4s ease-in-out 3; }
+
+  /* Off-track pulse */
+  @keyframes offtrack {
+    0%,100% { box-shadow: var(--shadow); }
+    50%      { box-shadow: 0 0 0 6px rgba(255,107,107,0.4), var(--shadow); }
+  }
+  .canvas-wrap.offtrack { animation: offtrack 0.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<h1>Trace &amp; Chase!</h1>
+<p class="subtitle">Follow the path — don't let the cat catch you!</p>
+
+<div class="hud">
+  <div class="hud-chip">Level <span id="hud-level">1</span></div>
+  <div class="shape-label" id="hud-shape">○</div>
+  <div class="hud-chip">Stars <span id="hud-stars">⭐ 0</span></div>
+</div>
+
+<div class="level-dots" id="level-dots"></div>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar"></div></div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="trace-canvas"></canvas>
+</div>
+
+<div class="banner" id="banner">Tap and drag to follow the path!</div>
+
+<!-- Start overlay -->
+<div class="overlay" id="start-overlay">
+  <div class="overlay-card">
+    <span class="big-emoji">🐭</span>
+    <h2 style="color:var(--blue)">Trace &amp; Chase!</h2>
+    <p>You're the <strong>mouse 🐭</strong>!<br>
+       Follow the glowing path with your finger.<br>
+       Watch out — the <strong>cat 🐱</strong> is chasing you!</p>
+    <button class="btn green" onclick="startGame()">Let's Go!</button>
+  </div>
+</div>
+
+<!-- Win overlay -->
+<div class="overlay hidden" id="win-overlay">
+  <div class="overlay-card" id="win-card">
+    <span class="big-emoji" id="win-emoji">🎉</span>
+    <h2 id="win-title" style="color:var(--green)">You did it!</h2>
+    <p id="win-msg">Great tracing!</p>
+    <button class="btn" id="win-btn" onclick="nextLevel()">Next Shape!</button>
+  </div>
+</div>
+
+<!-- Caught overlay -->
+<div class="overlay hidden" id="caught-overlay">
+  <div class="overlay-card">
+    <span class="big-emoji">😿</span>
+    <h2 style="color:var(--primary)">Got ya!</h2>
+    <p>The cat caught up! Try again — move your finger faster!</p>
+    <button class="btn" onclick="retryLevel()">Try Again!</button>
+  </div>
+</div>
+
+<!-- All done overlay -->
+<div class="overlay hidden" id="done-overlay">
+  <div class="overlay-card">
+    <span class="big-emoji">🏆</span>
+    <h2 style="color:var(--secondary)">Amazing!</h2>
+    <p id="done-msg">You traced every shape! You're a tracing superstar!</p>
+    <button class="btn green" onclick="restartAll()">Play Again!</button>
+  </div>
+</div>
+
+<script>
+// ─── Path generation ──────────────────────────────────────────────────────────
+
+const W = Math.min(480, window.innerWidth - 32);
+const H = Math.round(W * 0.75);
+const CX = W / 2, CY = H / 2;
+
+// Generate a dense polyline (array of {x,y}) from a path function
+function densify(pts, stepsPerSeg = 6) {
+  const out = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i+1];
+    for (let t = 0; t < stepsPerSeg; t++) {
+      const f = t / stepsPerSeg;
+      out.push({ x: a.x + (b.x-a.x)*f, y: a.y + (b.y-a.y)*f });
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+// Sample a parametric curve into N points
+function sampleCurve(fn, N = 300) {
+  const pts = [];
+  for (let i = 0; i <= N; i++) pts.push(fn(i / N));
+  return pts;
+}
+
+// ─── Shape definitions ────────────────────────────────────────────────────────
+
+const R = Math.min(W, H) * 0.34;
+const r = R * 0.55;
+
+function makeOval() {
+  return sampleCurve(t => ({
+    x: CX + R * 1.1 * Math.cos(2*Math.PI*t - Math.PI/2),
+    y: CY + R * 0.7 * Math.sin(2*Math.PI*t - Math.PI/2)
+  }));
+}
+
+function makeFigure8() {
+  // Lemniscate-style figure-8
+  return sampleCurve(t => {
+    const a = 2 * Math.PI * t;
+    return {
+      x: CX + R * 1.05 * Math.cos(a) / (1 + Math.sin(a)*Math.sin(a)),
+      y: CY + R * 0.75 * Math.sin(a) * Math.cos(a) / (1 + Math.sin(a)*Math.sin(a))
+    };
+  });
+}
+
+// Digit / letter outlines as hand-crafted bezier sequences, sampled densely
+function bezierPts(segments, N = 400) {
+  // Each segment is [P0, P1, P2, P3] (cubic) or [P0, P1, P2] (quadratic)
+  const pts = [];
+  const perSeg = Math.ceil(N / segments.length);
+  for (const seg of segments) {
+    for (let i = 0; i <= perSeg; i++) {
+      const t = i / perSeg;
+      let p;
+      if (seg.length === 3) {
+        const [p0,p1,p2] = seg;
+        const mt = 1-t;
+        p = { x: mt*mt*p0.x + 2*mt*t*p1.x + t*t*p2.x,
+              y: mt*mt*p0.y + 2*mt*t*p1.y + t*t*p2.y };
+      } else {
+        const [p0,p1,p2,p3] = seg;
+        const mt = 1-t;
+        p = { x: mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x,
+              y: mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y };
+      }
+      pts.push(p);
+    }
+  }
+  return pts;
+}
+
+function sc(x, y) { return { x: CX + x * R * 0.95, y: CY + y * R * 0.95 }; }
+
+function makeDigit3() {
+  // 3 — two bumps to the right, starting from top-left
+  return bezierPts([
+    [sc(-0.5,-0.9), sc(0.6,-0.9), sc(0.6,-0.9), sc(0.6,-0.4)],
+    [sc(0.6,-0.4), sc(0.6, 0.0), sc(-0.1, 0.0), sc(-0.1, 0.0)],
+    [sc(-0.1, 0.0), sc(0.6, 0.0), sc(0.6, 0.4), sc(0.6, 0.9)],
+    [sc(0.6, 0.9), sc(0.6, 0.9), sc(-0.5, 0.9), sc(-0.5, 0.9)],
+  ]);
+}
+
+function makeDigit6() {
+  // 6 — curl down then loop
+  return bezierPts([
+    [sc(0.4,-0.95), sc(-0.7,-0.8), sc(-0.65,-0.1), sc(-0.65, 0.3)],
+    [sc(-0.65, 0.3), sc(-0.65, 1.0), sc(0.65, 1.0), sc(0.65, 0.35)],
+    [sc(0.65, 0.35), sc(0.65,-0.15), sc(-0.65,-0.15), sc(-0.65, 0.35)],
+  ]);
+}
+
+function makeDigit8() {
+  // 8 — two stacked circles, traced as one continuous path
+  const topCY = CY - R * 0.38, botCY = CY + R * 0.38;
+  const rx = R * 0.48, ry = R * 0.35;
+  const pts = [];
+  // top loop (CCW starting from bottom-center)
+  for (let i = 0; i <= 100; i++) {
+    const a = Math.PI/2 + 2*Math.PI*(i/100);
+    pts.push({ x: CX + rx*Math.cos(a), y: topCY + ry*Math.sin(a) });
+  }
+  // bottom loop (CW)
+  for (let i = 0; i <= 100; i++) {
+    const a = -Math.PI/2 + 2*Math.PI*(i/100);
+    pts.push({ x: CX + rx*Math.cos(a), y: botCY + ry*Math.sin(a) });
+  }
+  // close back to top
+  pts.push(pts[0]);
+  return pts;
+}
+
+function makeDigit9() {
+  return bezierPts([
+    // top loop
+    [sc(0.55,-0.1), sc(0.55,-0.9), sc(-0.55,-0.9), sc(-0.55,-0.1)],
+    [sc(-0.55,-0.1), sc(-0.55, 0.5), sc(0.55, 0.5), sc(0.55,-0.1)],
+    // tail curving down
+    [sc(0.55,-0.1), sc(0.55, 0.6), sc(0.3, 0.95), sc(-0.2, 0.95)],
+  ]);
+}
+
+function makeLetterC() {
+  return bezierPts([
+    [sc(0.65,-0.6), sc(0.2,-1.0), sc(-0.65,-1.0), sc(-0.65, 0.0)],
+    [sc(-0.65, 0.0), sc(-0.65, 1.0), sc(0.2, 1.0), sc(0.65, 0.6)],
+  ]);
+}
+
+function makeLetterE() {
+  // E — right to left top, down left side, right middle, back, down, right bottom
+  return densify([
+    sc(0.6,-0.95), sc(-0.6,-0.95), sc(-0.6, 0.0),
+    sc(0.3, 0.0), sc(-0.6, 0.0), sc(-0.6, 0.95), sc(0.6, 0.95)
+  ], 8);
+}
+
+function makeLetterL() {
+  return densify([
+    sc(-0.2,-0.95), sc(-0.2, 0.85), sc(0.6, 0.85)
+  ], 12);
+}
+
+function makeLetterO() {
+  return sampleCurve(t => ({
+    x: CX + R * 0.72 * Math.cos(2*Math.PI*t - Math.PI/2),
+    y: CY + R * 0.92 * Math.sin(2*Math.PI*t - Math.PI/2)
+  }));
+}
+
+function makeLetterS() {
+  return bezierPts([
+    [sc(0.6,-0.85), sc(0.6,-1.0), sc(-0.6,-1.0), sc(-0.6,-0.45)],
+    [sc(-0.6,-0.45), sc(-0.6, 0.0), sc(0.6, 0.0), sc(0.6, 0.45)],
+    [sc(0.6, 0.45), sc(0.6, 1.0), sc(-0.6, 1.0), sc(-0.6, 0.85)],
+  ]);
+}
+
+function makeLetterU() {
+  return bezierPts([
+    [sc(-0.5,-0.95), sc(-0.5, 0.5), sc(-0.5, 1.0), sc(0.0, 1.0)],
+    [sc(0.0, 1.0), sc(0.5, 1.0), sc(0.5, 0.5), sc(0.5,-0.95)],
+  ]);
+}
+
+function makeLetterJ() {
+  return bezierPts([
+    [sc(0.2,-0.95), sc(0.2, 0.55), sc(0.2, 1.0), sc(-0.2, 1.0)],
+    [sc(-0.2, 1.0), sc(-0.55, 1.0), sc(-0.55, 0.55), sc(-0.55, 0.35)],
+  ]);
+}
+
+// ─── Level definitions ────────────────────────────────────────────────────────
+
+const LEVELS = [
+  { label: '○',  name: 'Oval',     makePath: makeOval,    catSpeed: 0.0018, offSlack: 28 },
+  { label: '∞',  name: 'Figure 8', makePath: makeFigure8, catSpeed: 0.0022, offSlack: 28 },
+  { label: 'L',  name: 'Letter L', makePath: makeLetterL, catSpeed: 0.0024, offSlack: 26 },
+  { label: 'U',  name: 'Letter U', makePath: makeLetterU, catSpeed: 0.0024, offSlack: 26 },
+  { label: 'J',  name: 'Letter J', makePath: makeLetterJ, catSpeed: 0.0026, offSlack: 26 },
+  { label: 'C',  name: 'Letter C', makePath: makeLetterC, catSpeed: 0.0026, offSlack: 26 },
+  { label: 'O',  name: 'Letter O', makePath: makeLetterO, catSpeed: 0.0028, offSlack: 24 },
+  { label: '3',  name: 'Number 3', makePath: makeDigit3,  catSpeed: 0.003,  offSlack: 26 },
+  { label: 'E',  name: 'Letter E', makePath: makeLetterE, catSpeed: 0.003,  offSlack: 26 },
+  { label: '6',  name: 'Number 6', makePath: makeDigit6,  catSpeed: 0.0032, offSlack: 24 },
+  { label: 'S',  name: 'Letter S', makePath: makeLetterS, catSpeed: 0.0034, offSlack: 24 },
+  { label: '9',  name: 'Number 9', makePath: makeDigit9,  catSpeed: 0.0034, offSlack: 24 },
+  { label: '8',  name: 'Number 8', makePath: makeDigit8,  catSpeed: 0.0036, offSlack: 24 },
+];
+
+// ─── Game state ───────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('trace-canvas');
+const ctx    = canvas.getContext('2d');
+canvas.width  = W;
+canvas.height = H;
+
+let levelIdx  = 0;
+let stars     = 0;
+let path      = [];           // dense array of {x,y}
+let pathLen   = 0;            // total arc-length of path
+let segLens   = [];           // cumulative arc-length at each point
+let mouseIdx  = 0;            // current progress index (path index)
+let catIdx    = 0;            // cat position (path index)
+let mousePos  = null;         // actual finger {x,y}
+let catPos    = { x:0, y:0 };
+let isDrawing = false;
+let gameRunning = false;
+let gameStarted = false;      // finger has touched for first time this round
+let rafId     = null;
+let lastTime  = 0;
+let isOpen    = false;        // is this path open (not a full loop)?
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
+
+function buildLevelDots() {
+  const el = document.getElementById('level-dots');
+  el.innerHTML = '';
+  for (let i = 0; i < LEVELS.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'level-dot' + (i < levelIdx ? ' done' : i === levelIdx ? ' active' : '');
+    el.appendChild(d);
+  }
+}
+
+function computePathMetrics(pts) {
+  const lens = [0];
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x, dy = pts[i].y - pts[i-1].y;
+    lens.push(lens[i-1] + Math.sqrt(dx*dx + dy*dy));
+  }
+  return { total: lens[lens.length-1], lens };
+}
+
+function loadLevel() {
+  const lv = LEVELS[levelIdx];
+  path = lv.makePath();
+
+  // Detect open path: is the end far from the start?
+  const dx = path[0].x - path[path.length-1].x;
+  const dy = path[0].y - path[path.length-1].y;
+  isOpen = Math.sqrt(dx*dx + dy*dy) > 20;
+
+  ({ total: pathLen, lens: segLens } = computePathMetrics(path));
+
+  mouseIdx = 0;
+  catIdx   = 0;
+  mousePos = null;
+  isDrawing = false;
+  gameStarted = false;
+
+  mousePos = { ...path[0] };
+  catPos   = { ...path[0] };
+
+  document.getElementById('hud-level').textContent  = levelIdx + 1;
+  document.getElementById('hud-shape').textContent  = lv.label;
+  document.getElementById('hud-stars').textContent  = '⭐ ' + stars;
+  document.getElementById('banner').textContent     = `Trace the ${lv.name}! Drag your finger along the glowing path.`;
+  document.getElementById('banner').style.color     = '';
+  document.getElementById('canvas-wrap').classList.remove('offtrack');
+
+  buildLevelDots();
+  drawFrame();
+}
+
+// ─── Path helpers ─────────────────────────────────────────────────────────────
+
+// Find the closest point index on path that is AHEAD of currentIdx (within a look-ahead window)
+function advanceToNearest(fx, fy, currentIdx) {
+  const LOOK_BACK  = 5;   // allow tiny backtrack to not get stuck
+  const LOOK_AHEAD = Math.floor(path.length * 0.35); // max 35% of path ahead
+
+  let bestDist = Infinity, bestIdx = currentIdx;
+  const start = Math.max(0, currentIdx - LOOK_BACK);
+  const end   = Math.min(path.length - 1, currentIdx + LOOK_AHEAD);
+
+  for (let i = start; i <= end; i++) {
+    const dx = path[i].x - fx, dy = path[i].y - fy;
+    const d  = dx*dx + dy*dy;
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+  return { idx: bestIdx, dist: Math.sqrt(bestDist) };
+}
+
+// ─── Drawing ──────────────────────────────────────────────────────────────────
+
+function drawFrame() {
+  ctx.clearRect(0, 0, W, H);
+
+  const lv = LEVELS[levelIdx];
+
+  // Draw full track (faint)
+  ctx.beginPath();
+  ctx.moveTo(path[0].x, path[0].y);
+  for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+  ctx.strokeStyle = '#dee2e6';
+  ctx.lineWidth   = 18;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  // Draw completed portion (glowing)
+  if (mouseIdx > 1) {
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i <= mouseIdx; i++) ctx.lineTo(path[i].x, path[i].y);
+    ctx.strokeStyle = '#74c0fc';
+    ctx.lineWidth   = 18;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+  }
+
+  // Start dot
+  ctx.beginPath();
+  ctx.arc(path[0].x, path[0].y, 10, 0, Math.PI*2);
+  ctx.fillStyle = '#51cf66';
+  ctx.fill();
+
+  // End dot (only for open paths)
+  if (isOpen) {
+    const ep = path[path.length - 1];
+    ctx.beginPath();
+    ctx.arc(ep.x, ep.y, 10, 0, Math.PI*2);
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fill();
+  }
+
+  // Cat 🐱
+  ctx.font = `${Math.round(W * 0.075)}px serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🐱', catPos.x, catPos.y);
+
+  // Mouse 🐭 (at finger or start)
+  const mp = mousePos || path[0];
+  ctx.font = `${Math.round(W * 0.075)}px serif`;
+  ctx.fillText('🐭', mp.x, mp.y);
+
+  // Progress %
+  const pct = Math.round((mouseIdx / (path.length - 1)) * 100);
+  document.getElementById('prog-bar').style.width = pct + '%';
+}
+
+// ─── Game loop ────────────────────────────────────────────────────────────────
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = ts - lastTime;
+  lastTime = ts;
+
+  const lv = LEVELS[levelIdx];
+
+  if (gameStarted) {
+    // Advance cat along path at fixed speed
+    const catDist = lv.catSpeed * dt * pathLen;
+    const targetArcLen = segLens[catIdx] + catDist;
+    while (catIdx < path.length - 1 && segLens[catIdx + 1] < targetArcLen) catIdx++;
+    catPos = { ...path[catIdx] };
+
+    // Check if cat caught the mouse
+    const cdx = catPos.x - (mousePos ? mousePos.x : path[mouseIdx].x);
+    const cdy = catPos.y - (mousePos ? mousePos.y : path[mouseIdx].y);
+    const catchDist = Math.sqrt(cdx*cdx + cdy*cdy);
+    if (catchDist < W * 0.07 && mouseIdx < path.length - 5) {
+      endLevel(false);
+      return;
+    }
+  }
+
+  drawFrame();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - r.left, y: src.clientY - r.top };
+}
+
+function onDown(e) {
+  e.preventDefault();
+  if (!gameRunning) return;
+  isDrawing = true;
+
+  if (!gameStarted) {
+    gameStarted = true;
+    lastTime = performance.now();
+    // Give mouse a tiny head start: start cat slightly behind
+    catIdx = 0;
+  }
+
+  const pos = getPos(e);
+  handleMove(pos);
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!isDrawing || !gameRunning) return;
+  handleMove(getPos(e));
+}
+
+function onUp(e) {
+  e.preventDefault();
+  isDrawing = false;
+}
+
+function handleMove(pos) {
+  const lv  = LEVELS[levelIdx];
+  const { idx, dist } = advanceToNearest(pos.x, pos.y, mouseIdx);
+
+  mousePos = pos;
+  mouseIdx = idx;
+
+  const slack = lv.offSlack * (W / 480);
+  if (dist > slack) {
+    document.getElementById('canvas-wrap').classList.add('offtrack');
+    document.getElementById('banner').textContent = 'Stay on the path! 🐱 is gaining!';
+    document.getElementById('banner').style.color = '#ff6b6b';
+    // Slow mouse: don't update idx (already gated by advanceToNearest)
+  } else {
+    document.getElementById('canvas-wrap').classList.remove('offtrack');
+    document.getElementById('banner').textContent = LEVELS[levelIdx].name + ' — keep going!';
+    document.getElementById('banner').style.color = '#51cf66';
+  }
+
+  // Win: reached end of path
+  const endThreshold = isOpen ? path.length - 3 : path.length - 8;
+  if (mouseIdx >= endThreshold) {
+    endLevel(true);
+  }
+}
+
+canvas.addEventListener('touchstart',  onDown, { passive: false });
+canvas.addEventListener('touchmove',   onMove, { passive: false });
+canvas.addEventListener('touchend',    onUp,   { passive: false });
+canvas.addEventListener('mousedown',   onDown);
+canvas.addEventListener('mousemove',   onMove);
+canvas.addEventListener('mouseup',     onUp);
+
+// ─── Level flow ───────────────────────────────────────────────────────────────
+
+function startGame() {
+  document.getElementById('start-overlay').classList.add('hidden');
+  gameRunning = true;
+  loadLevel();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function endLevel(won) {
+  gameRunning = false;
+  cancelAnimationFrame(rafId);
+  isDrawing = false;
+
+  if (won) {
+    stars++;
+    document.getElementById('hud-stars').textContent = '⭐ ' + stars;
+    document.getElementById('canvas-wrap').classList.add('celebrating');
+    setTimeout(() => document.getElementById('canvas-wrap').classList.remove('celebrating'), 1300);
+
+    const isLast = levelIdx === LEVELS.length - 1;
+    document.getElementById('win-emoji').textContent  = isLast ? '🏆' : '⭐';
+    document.getElementById('win-title').textContent  = isLast ? 'All done!' : 'Amazing!';
+    document.getElementById('win-msg').textContent    = isLast
+      ? `You traced all ${LEVELS.length} shapes — you're a champion!`
+      : `Great ${LEVELS[levelIdx].name}! Ready for the next one?`;
+    document.getElementById('win-btn').textContent    = isLast ? 'Play Again!' : 'Next Shape!';
+    document.getElementById('win-btn').onclick        = isLast ? restartAll : nextLevel;
+    document.getElementById('win-overlay').classList.remove('hidden');
+  } else {
+    document.getElementById('caught-overlay').classList.remove('hidden');
+  }
+}
+
+function nextLevel() {
+  document.getElementById('win-overlay').classList.add('hidden');
+  levelIdx++;
+  gameRunning = true;
+  loadLevel();
+  lastTime = performance.now();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function retryLevel() {
+  document.getElementById('caught-overlay').classList.add('hidden');
+  gameRunning = true;
+  loadLevel();
+  lastTime = performance.now();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function restartAll() {
+  document.getElementById('done-overlay').classList.add('hidden');
+  document.getElementById('win-overlay').classList.add('hidden');
+  levelIdx = 0;
+  stars    = 0;
+  gameRunning = true;
+  loadLevel();
+  lastTime = performance.now();
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+buildLevelDots();
+loadLevel();
+</script>
+</body>
+</html>
