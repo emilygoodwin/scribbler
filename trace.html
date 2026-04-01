@@ -479,12 +479,12 @@ let pathLen   = 0;            // total arc-length of path
 let segLens   = [];           // cumulative arc-length at each point
 let mouseIdx  = 0;            // current progress index (path index)
 let catIdx    = 0;            // cat position (path index)
+let catGap    = 0;            // how many path steps the cat trails behind the mouse
 let mousePos  = null;         // actual finger {x,y}
 let catPos    = { x:0, y:0 };
 let isDrawing = false;
 let gameRunning = false;
 let gameStarted = false;      // finger has touched for first time this round
-let graceUntil  = 0;          // timestamp before which cat can't catch mouse
 let rafId     = null;
 let lastTime  = 0;
 let isOpen    = false;        // is this path open (not a full loop)?
@@ -523,12 +523,13 @@ function loadLevel() {
 
   mouseIdx = 0;
   catIdx   = 0;
+  catGap   = Math.floor(path.length * 0.4); // cat starts 40% of path behind mouse
   mousePos = null;
   isDrawing = false;
   gameStarted = false;
 
   mousePos = { ...path[0] };
-  catPos   = { ...path[0] };
+  catPos   = { ...path[Math.max(0, path.length - catGap)] }; // behind on closed loop
 
   document.getElementById('hud-level').textContent  = levelIdx + 1;
   document.getElementById('hud-shape').textContent  = lv.label;
@@ -630,17 +631,13 @@ function gameLoop(ts) {
   const lv = LEVELS[levelIdx];
 
   if (gameStarted) {
-    // Advance cat along path at fixed speed
-    const catDist = lv.catSpeed * dt * pathLen;
-    const targetArcLen = segLens[catIdx] + catDist;
-    while (catIdx < path.length - 1 && segLens[catIdx + 1] < targetArcLen) catIdx++;
+    // Cat closes the gap: reduce catGap over time at catSpeed rate
+    catGap = Math.max(0, catGap - lv.catSpeed * dt * path.length);
+    catIdx = Math.max(0, mouseIdx - Math.floor(catGap));
     catPos = { ...path[catIdx] };
 
-    // Check if cat caught the mouse
-    const cdx = catPos.x - (mousePos ? mousePos.x : path[mouseIdx].x);
-    const cdy = catPos.y - (mousePos ? mousePos.y : path[mouseIdx].y);
-    const catchDist = Math.sqrt(cdx*cdx + cdy*cdy);
-    if (catchDist < W * 0.07 && mouseIdx < path.length - 5 && performance.now() > graceUntil) {
+    // Caught when gap closes to within ~8 steps and mouse isn't near the end
+    if (catGap < 8 && mouseIdx < path.length - 5) {
       endLevel(false);
       return;
     }
@@ -666,8 +663,6 @@ function onDown(e) {
   if (!gameStarted) {
     gameStarted = true;
     lastTime = performance.now();
-    graceUntil = performance.now() + 1500; // 1.5s before cat can catch
-    catIdx = 0;
   }
 
   const pos = getPos(e);
